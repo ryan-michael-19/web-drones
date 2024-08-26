@@ -1,0 +1,100 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: ColoBots
+  description: Api to play ColoBots!
+paths:
+  /init:
+    post:
+      description: initialize the game with mining locations and single bot (temporary)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+  /bots:
+    get:
+      description: Get a list of bots and what they're doing
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bot'
+  /bots/{botId}:
+    get:
+      description: Get a single bot by id
+      parameters:
+        - name: botId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bot'
+  /bots/{botId}/move:
+    post:
+      description: Move bot to new location
+      parameters:
+        - name: botId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Coordinates'
+  /mines:
+    get:
+      description: Get the coordinates of mines
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Coordinates'
+
+        
+components:
+  schemas:
+    Bot:
+      type: object
+      properties:
+        identifier: 
+          type: string
+        name: 
+          type: string
+        status:
+          type: string
+          enum: ["IDLE", "MOVING", "MINING"]
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+      required:
+        - identifier
+        - name
+        - status
+        - coordinates
+    Coordinates:
+      type: object
+      properties:
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+      required:
+        - x
+        - y
