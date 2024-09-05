@@ -74,17 +74,43 @@ func GetBotLocation(
 
 // (GET /bots)
 func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
-	id := "Totally random id"
-	name := "Beep Boop"
-	status := api.IDLE
-	coords := api.Coordinates{X: 6, Y: 45}
-	resp := []api.Bot{
-		{
-			Coordinates: coords,
-			Identifier:  id,
-			Name:        name,
-			Status:      status,
-		},
+	// id := "Totally random id"
+	// name := "Beep Boop"
+	// status := api.IDLE
+	// coords := api.Coordinates{X: 6, Y: 45}
+	// resp := []api.Bot{
+	// {
+	// Coordinates: coords,
+	// Identifier:  id,
+	// Name:        name,
+	// Status:      status,
+	// },
+	// }
+	type BotsWithActions struct {
+		schemas.Bots
+		schemas.BotActions
+	}
+	var bots []BotsWithActions
+	db.Model(&BotsWithActions{}).InnerJoins("BotActions").Find(&bots)
+	resp := make([]api.Bot, len(bots))
+	now := time.Now()
+	for i, bot := range bots {
+		loc, err := GetBotLocation(
+			api.Coordinates{X: bot.X, Y: bot.Y},
+			api.Coordinates{X: float64(bot.New_X), Y: float64(bot.New_Y)},
+			bot.TimeActionStarted, now,
+			0.5,
+		)
+		if err != nil {
+			fmt.Println(err)
+			loc = api.Coordinates{X: math.NaN(), Y: math.NaN()}
+		}
+		resp[i] = api.Bot{
+			Coordinates: loc,
+			Identifier:  bot.Identifier,
+			Name:        bot.Name,
+			Status:      bot.Status,
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)

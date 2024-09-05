@@ -2,6 +2,7 @@ package schemas
 
 import (
 	"colony-bots/api"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -18,11 +19,12 @@ type Bots struct {
 
 type BotActions struct {
 	gorm.Model
-	ID     int
-	Bot    Bots
-	Action api.BotStatus
-	New_X  float32
-	New_Y  float32
+	ID                int
+	BotID             int
+	Bot               Bots `gorm:"foreignKey:BotID;references:ID"`
+	TimeActionStarted time.Time
+	New_X             float64
+	New_Y             float64
 }
 
 type Mines struct {
