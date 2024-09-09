@@ -3,17 +3,19 @@ package impl
 import (
 	"colony-bots/api"
 	"colony-bots/schemas"
+	"context"
+	"log"
 	"math"
+	"strings"
 
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Server struct{}
@@ -22,17 +24,36 @@ func NewServer() Server {
 	return Server{}
 }
 
-func openDB() *gorm.DB {
-	dsn := "host=localhost user=gorm password=gorm dbname=gorm port=5432 sslmode=disable TimeZone=EST"
-	db, db_err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if db_err != nil {
-		fmt.Println("COULD NOT OPEN DB CONNECTION", db_err)
-		os.Exit(1)
+// func openDB() *gorm.DB {
+func openDB() *pgxpool.Pool {
+	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
+	if err != nil {
+		log.Fatal(err)
 	}
-	return db
+	return conn
+}
+
+func BuildInsert(tableName string, colNames ...string) string {
+	// TODO: This feels very injectable...
+	valueFormats := []string{} // ["$1", "$2", etc..]
+	for i := range colNames {
+		valueFormats = append(valueFormats, "$"+fmt.Sprintf("%d", i+1))
+	}
+	valString := "NOW(),NULL,NULL," + strings.Join(valueFormats, ",")
+	colString := "created_at,updated_at,deleted_at," + strings.Join(colNames, ",")
+	sqlString := "INSERT INTO " + tableName + "(" + colString + ") VALUES (" + valString + ")"
+	fmt.Println(sqlString)
+	return sqlString
+}
+
+func BuildLogger() *log.Logger {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	return log.Default()
 }
 
 var db = openDB()
+var ctx = context.Background()
+var logger = BuildLogger()
 
 type GetBotLocationError struct {
 	message string
@@ -90,14 +111,36 @@ func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 		schemas.Bots
 		schemas.BotActions
 	}
-	var bots []BotsWithActions
-	db.Model(&BotsWithActions{}).InnerJoins("BotActions").Find(&bots)
-	resp := make([]api.Bot, len(bots))
+	// var bots []BotsWithActions
+	// db.Table("bots").
+	// Select("bots.ID, bots.Identifier, bots.Name, bots.Status, bots.X, bots.Y").
+	// Joins("JOIN bot_actions ON bots.ID = bot_actions.bot_id").
+	// Find(&bots)
+	rows, err := db.Query(ctx,
+		"SELECT bots.Identifier, bots.Name, bots.Status, bots.X, bots.Y,"+
+			" bot_actions.New_X, bot_actions.New_Y, bot_actions.Time_Action_Started,"+
+			" FROM bots"+
+			" JOIN bot_actions ON bots.ID = bot_actions.bot_id",
+	)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer rows.Close()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	var resp []api.Bot
 	now := time.Now()
-	for i, bot := range bots {
+	// TODO: Change to CollectRows
+	for rows.Next() {
+		var bot BotsWithActions
+		rows.Scan(
+			&bot.Identifier, &bot.Name, &bot.Status, &bot.X, &bot.Y,
+			&bot.NewX, &bot.NewY, &bot.TimeActionStarted,
+		)
 		loc, err := GetBotLocation(
 			api.Coordinates{X: bot.X, Y: bot.Y},
-			api.Coordinates{X: float64(bot.New_X), Y: float64(bot.New_Y)},
+			api.Coordinates{X: float64(bot.NewX), Y: float64(bot.NewY)},
 			bot.TimeActionStarted, now,
 			0.5,
 		)
@@ -105,12 +148,12 @@ func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			loc = api.Coordinates{X: math.NaN(), Y: math.NaN()}
 		}
-		resp[i] = api.Bot{
+		resp = append(resp, api.Bot{
 			Coordinates: loc,
 			Identifier:  bot.Identifier,
 			Name:        bot.Name,
 			Status:      bot.Status,
-		}
+		})
 	}
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
@@ -130,36 +173,53 @@ func (Server) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string)
 
 // (POST /init)
 func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
-	db.Where("1=1").Delete(&schemas.Bots{})
-	db.Where("1=1").Delete(&schemas.Mines{})
-
-	db.Create(&schemas.Bots{
-		Identifier: "definitely-a-uuid",
-		Name:       "Big Chungus",
-		Status:     api.IDLE,
-		X:          5,
-		Y:          30,
-	})
-	mineCount := 10
-	mines := make([]schemas.Mines, mineCount)
-	for i := range mineCount {
-		mines[i] = schemas.Mines{
-			X: rand.Float64(),
-			Y: rand.Float64(),
-		}
+	_, err := db.Exec(ctx,
+		"DELETE FROM bots WHERE 1=1 ;"+
+			" DELETE FROM bot_actions WHERE 1=1 ;"+
+			" DELETE FROM mines WHERE 1=1",
+	)
+	if err != nil {
+		logger.Fatal(err)
 	}
-	db.Create(mines)
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer tx.Rollback(ctx)
+	batch := &pgx.Batch{}
+	// _, err = tx.Exec(ctx,
+	batch.Queue(
+		BuildInsert("bots", "Identifier", "Name", "Status", "X", "Y"),
+		"definitely-a-uuid", "Big Chungus", api.IDLE, 5, 30,
+	)
+	mineCount := 10
+	for range mineCount {
+		batch.Queue(
+			BuildInsert("mines", "X", "Y"),
+			rand.Float64(), rand.Float64(),
+		)
+	}
+	db.SendBatch(ctx, batch)
 	// TODO: Update openapi to include bots and mines in response
-	var botFromDB schemas.Bots
-	db.First(&botFromDB)
+	rows, err := db.Query(ctx,
+		"SELECT Identifier, Name, Status, X, Y FROM bots",
+	)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	resp, err := pgx.CollectRows(rows, pgx.RowToStructByName[schemas.Bots])
+	if err != nil {
+		logger.Fatal(err)
+	}
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(botFromDB)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // (POST /bots/{botId}/move)
 func (Server) PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string) {
 	var bot schemas.Bots
-	db.First(&bot, "Identifier = ?", botId)
+	// db.First(&bot, "Identifier = ?", botId)
+	// db.Table("bot_actions").In
 	var newCoords api.Coordinates
 	err := json.NewDecoder(r.Body).Decode(&newCoords)
 	if err != nil {

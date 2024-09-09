@@ -3,13 +3,17 @@ package schemas
 import (
 	"colony-bots/api"
 	"time"
-
-	"gorm.io/gorm"
 )
 
+type Metadata struct {
+	CreatedAt time.Time `db:"-"`
+	UpdatedAt time.Time `db:"-"`
+	DeletedAt time.Time `db:"-"`
+}
+
 type Bots struct {
-	gorm.Model
-	ID         int
+	Metadata
+	ID         int `db:"-"`
 	Identifier string
 	Name       string
 	Status     api.BotStatus
@@ -18,18 +22,18 @@ type Bots struct {
 }
 
 type BotActions struct {
-	gorm.Model
-	ID                int
+	Metadata
+	ID                int `db:"-"`
 	BotID             int
 	Bot               Bots `gorm:"foreignKey:BotID;references:ID"`
 	TimeActionStarted time.Time
-	New_X             float64
-	New_Y             float64
+	NewX              float64
+	NewY              float64
 }
 
 type Mines struct {
-	gorm.Model
-	ID int
+	Metadata
+	ID int `db:"-"`
 	X  float64
 	Y  float64
 }

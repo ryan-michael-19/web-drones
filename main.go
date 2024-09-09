@@ -3,7 +3,6 @@ package main
 import (
 	"colony-bots/api"
 	"colony-bots/impl"
-	"colony-bots/schemas"
 	"context"
 	"fmt"
 	"io"
@@ -11,9 +10,6 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -35,16 +31,6 @@ func main() {
 
 		// And we serve HTTP until the world ends.
 		log.Fatal(s.ListenAndServe())
-	} else if RUN_TYPE == "SCHEMA" {
-		dsn := "host=localhost user=gorm password=gorm dbname=gorm port=5432 sslmode=disable TimeZone=EST"
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		db.AutoMigrate(&schemas.Bots{})
-		db.AutoMigrate(&schemas.Mines{})
-		db.AutoMigrate(&schemas.BotActions{})
 	} else if RUN_TYPE == "C" || RUN_TYPE == "CLIENT" {
 		hc := http.Client{}
 		client, err := api.NewClient("http://localhost:8080", api.WithHTTPClient(&hc))
@@ -72,10 +58,9 @@ func main() {
 					log.Fatal(err)
 				}
 				contentLength := response.FieldByName("ContentLength").Int()
-				fmt.Println(contentLength)
 				resBody := make([]byte, contentLength)
 				response.FieldByName("Body").Interface().(io.ReadCloser).Read(resBody)
-				fmt.Println(resBody)
+				fmt.Println(string(resBody))
 			}
 		}
 
