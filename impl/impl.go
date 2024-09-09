@@ -24,7 +24,6 @@ func NewServer() Server {
 	return Server{}
 }
 
-// func openDB() *gorm.DB {
 func openDB() *pgxpool.Pool {
 	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
 	if err != nil {
@@ -95,27 +94,10 @@ func GetBotLocation(
 
 // (GET /bots)
 func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
-	// id := "Totally random id"
-	// name := "Beep Boop"
-	// status := api.IDLE
-	// coords := api.Coordinates{X: 6, Y: 45}
-	// resp := []api.Bot{
-	// {
-	// Coordinates: coords,
-	// Identifier:  id,
-	// Name:        name,
-	// Status:      status,
-	// },
-	// }
 	type BotsWithActions struct {
 		schemas.Bots
 		schemas.BotActions
 	}
-	// var bots []BotsWithActions
-	// db.Table("bots").
-	// Select("bots.ID, bots.Identifier, bots.Name, bots.Status, bots.X, bots.Y").
-	// Joins("JOIN bot_actions ON bots.ID = bot_actions.bot_id").
-	// Find(&bots)
 	rows, err := db.Query(ctx,
 		"SELECT bots.Identifier, bots.Name, bots.Status, bots.X, bots.Y,"+
 			" bot_actions.New_X, bot_actions.New_Y, bot_actions.Time_Action_Started,"+
@@ -218,8 +200,6 @@ func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
 // (POST /bots/{botId}/move)
 func (Server) PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string) {
 	var bot schemas.Bots
-	// db.First(&bot, "Identifier = ?", botId)
-	// db.Table("bot_actions").In
 	var newCoords api.Coordinates
 	err := json.NewDecoder(r.Body).Decode(&newCoords)
 	if err != nil {
