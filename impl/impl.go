@@ -15,21 +15,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Server struct{}
 
 func NewServer() Server {
 	return Server{}
-}
-
-func openDB() *pgxpool.Pool {
-	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return conn
 }
 
 func BuildInsert(tableName string, colNames ...string) string {
@@ -45,12 +36,20 @@ func BuildInsert(tableName string, colNames ...string) string {
 	return sqlString
 }
 
+func BuildBotAction(ctx context.Context, bot_uuid string, x int64, y int64) {
+}
+
+type BotsWithActions struct {
+	schemas.Bots
+	schemas.BotActions
+}
+
 func BuildLogger() *log.Logger {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	return log.Default()
 }
 
-var db = openDB()
+var db = schemas.OpenDB()
 var ctx = context.Background()
 var logger = BuildLogger()
 
@@ -94,36 +93,30 @@ func GetBotLocation(
 
 // (GET /bots)
 func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
-	type BotsWithActions struct {
-		schemas.Bots
-		schemas.BotActions
-	}
 	rows, err := db.Query(ctx,
-		"SELECT bots.Identifier, bots.Name, bots.Status, bots.X, bots.Y,"+
-			" bot_actions.New_X, bot_actions.New_Y, bot_actions.Time_Action_Started,"+
+		"SELECT bots.Identifier, bots.Name,"+
+			" bot_actions.New_X, bot_actions.New_Y, bot_actions.Time_Action_Started"+
 			" FROM bots"+
-			" JOIN bot_actions ON bots.ID = bot_actions.bot_id",
+			" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id"+
+			" ORDER BY bot_actions.Time_Action_Started DESC",
 	)
 	if err != nil {
 		logger.Fatal(err)
 	}
 	defer rows.Close()
-	if err != nil {
-		logger.Fatal(err)
-	}
 	var resp []api.Bot
 	now := time.Now()
 	// TODO: Change to CollectRows
 	for rows.Next() {
 		var bot BotsWithActions
 		rows.Scan(
-			&bot.Identifier, &bot.Name, &bot.Status, &bot.X, &bot.Y,
-			&bot.NewX, &bot.NewY, &bot.TimeActionStarted,
+			&bot.Identifier, &bot.Name,
+			&bot.New_X, &bot.New_Y, &bot.Time_Action_Started,
 		)
 		loc, err := GetBotLocation(
-			api.Coordinates{X: bot.X, Y: bot.Y},
-			api.Coordinates{X: float64(bot.NewX), Y: float64(bot.NewY)},
-			bot.TimeActionStarted, now,
+			api.Coordinates{X: bot.New_X, Y: bot.New_Y},
+			api.Coordinates{X: float64(bot.New_X), Y: float64(bot.New_Y)},
+			bot.Time_Action_Started, now,
 			0.5,
 		)
 		if err != nil {
@@ -134,7 +127,6 @@ func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 			Coordinates: loc,
 			Identifier:  bot.Identifier,
 			Name:        bot.Name,
-			Status:      bot.Status,
 		})
 	}
 	w.WriteHeader(http.StatusOK)
@@ -155,24 +147,28 @@ func (Server) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string)
 
 // (POST /init)
 func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
+	// TODO: Use transactions
+	// tx, err := db.Begin(ctx)
+	// if err != nil {
+	// logger.Fatal(err)
+	// }
 	_, err := db.Exec(ctx,
-		"DELETE FROM bots WHERE 1=1 ;"+
-			" DELETE FROM bot_actions WHERE 1=1 ;"+
+		"DELETE FROM bot_actions WHERE 1=1 ;"+
+			" DELETE FROM bots WHERE 1=1 ;"+
 			" DELETE FROM mines WHERE 1=1",
 	)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	tx, err := db.Begin(ctx)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	defer tx.Rollback(ctx)
 	batch := &pgx.Batch{}
-	// _, err = tx.Exec(ctx,
 	batch.Queue(
-		BuildInsert("bots", "Identifier", "Name", "Status", "X", "Y"),
-		"definitely-a-uuid", "Big Chungus", api.IDLE, 5, 30,
+		BuildInsert("bots", "Identifier", "Name"),
+		"definitely-a-uuid", "Big Chungus",
+	)
+	batch.Queue(
+		"INSERT INTO bot_actions (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)"+
+			" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)",
+		"definitely-a-uuid", 55, 80,
 	)
 	mineCount := 10
 	for range mineCount {
@@ -181,24 +177,31 @@ func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
 			rand.Float64(), rand.Float64(),
 		)
 	}
-	db.SendBatch(ctx, batch)
+	err = db.SendBatch(ctx, batch).Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// tx.Rollback(ctx)
 	// TODO: Update openapi to include bots and mines in response
 	rows, err := db.Query(ctx,
-		"SELECT Identifier, Name, Status, X, Y FROM bots",
+		"SELECT bots.Identifier, bots.Name, bot_actions.Time_Action_Started, bot_actions.New_X, bot_actions.New_Y"+
+			" FROM bots JOIN bot_actions ON bot_actions.bot_id = bots.id",
 	)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	resp, err := pgx.CollectRows(rows, pgx.RowToStructByName[schemas.Bots])
+	resp, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
 	if err != nil {
 		logger.Fatal(err)
 	}
+	// tx.Commit(ctx)
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // (POST /bots/{botId}/move)
 func (Server) PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string) {
+	// TODO: IMPLEMENT THIS
 	var bot schemas.Bots
 	var newCoords api.Coordinates
 	err := json.NewDecoder(r.Body).Decode(&newCoords)

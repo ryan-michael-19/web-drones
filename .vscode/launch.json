@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}/main.go",
             "env": {
                 "GO111MODULE": "on"
-            }
+            },
+            "args": ["SERVER"]
 
         }
     ]

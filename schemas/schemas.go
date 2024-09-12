@@ -1,10 +1,22 @@
 package schemas
 
 import (
-	"colony-bots/api"
+	"context"
+	"log"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+func OpenDB() *pgxpool.Pool {
+	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return conn
+}
+
+// TODO: Get rid of these??
 type Metadata struct {
 	CreatedAt time.Time `db:"-"`
 	UpdatedAt time.Time `db:"-"`
@@ -16,19 +28,15 @@ type Bots struct {
 	ID         int `db:"-"`
 	Identifier string
 	Name       string
-	Status     api.BotStatus
-	X          float64
-	Y          float64
 }
 
 type BotActions struct {
 	Metadata
-	ID                int `db:"-"`
-	BotID             int
-	Bot               Bots `gorm:"foreignKey:BotID;references:ID"`
-	TimeActionStarted time.Time
-	NewX              float64
-	NewY              float64
+	ID                  int `db:"-"`
+	Bot_ID              int `db:"-"`
+	Time_Action_Started time.Time
+	New_X               float64
+	New_Y               float64
 }
 
 type Mines struct {

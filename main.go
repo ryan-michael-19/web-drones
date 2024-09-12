@@ -3,6 +3,7 @@ package main
 import (
 	"colony-bots/api"
 	"colony-bots/impl"
+	"colony-bots/schemas"
 	"context"
 	"fmt"
 	"io"
@@ -28,9 +29,17 @@ func main() {
 			Handler: h,
 			Addr:    "0.0.0.0:8080",
 		}
-
 		// And we serve HTTP until the world ends.
 		log.Fatal(s.ListenAndServe())
+	} else if RUN_TYPE == "SCHEMA" {
+		file, err := os.ReadFile("./schemas/schemas.sql")
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = schemas.OpenDB().Exec(context.Background(), string(file))
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else if RUN_TYPE == "C" || RUN_TYPE == "CLIENT" {
 		hc := http.Client{}
 		client, err := api.NewClient("http://localhost:8080", api.WithHTTPClient(&hc))
@@ -46,7 +55,7 @@ func main() {
 		fn := os.Args[2]
 		args := make([]reflect.Value, len(os.Args[3:])+2)
 		args[0] = reflect.ValueOf(client)
-		args[1] = reflect.ValueOf(context.TODO()) // TODO: This works apparently??
+		args[1] = reflect.ValueOf(context.Background()) // TODO: This works apparently??
 		for i := range os.Args[3:] {
 			args[i+1] = reflect.ValueOf(os.Args[3+i])
 		}
