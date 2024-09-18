@@ -3,7 +3,9 @@ package tests
 import (
 	"colony-bots/api"
 	"colony-bots/impl"
+	"colony-bots/schemas"
 	"math"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -78,4 +80,223 @@ func TestGetBotLocation(t *testing.T) {
 	if err_4 == nil {
 		t.Fatalf("Expected error but did not get one")
 	}
+}
+
+func TestGetBotsFromLedger(t *testing.T) {
+	bob := schemas.Bots{
+		ID:         1,
+		Identifier: "test 1",
+		Name:       "Bob",
+	}
+	// Test a happy path of two action rows where bot reaches destination
+	testLedger := []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:               0,
+				New_Y:               0,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:               5,
+				New_Y:               5,
+			},
+		},
+	}
+	expectedBots := []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: 5, Y: 5},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.MOVING,
+		},
+	}
+	testResult := impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 10, 5, 0, time.UTC),
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// Test three action rows.
+	testLedger = []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:               0,
+				New_Y:               0,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:               5,
+				New_Y:               5,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 10, 0, time.UTC),
+				New_X:               -5,
+				New_Y:               -5,
+			},
+		},
+	}
+	expectedBots = []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: -5, Y: -5},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.MOVING,
+		},
+	}
+	testResult = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 10, 10, 0, time.UTC),
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// Test where a subsequent action row interrupts the movement of its predecessor
+	testLedger = []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:               0,
+				New_Y:               0,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:               5,
+				New_Y:               5,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 1, time.UTC),
+				New_X:               -5,
+				New_Y:               -5,
+			},
+		},
+	}
+	expectedBots = []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: -5, Y: -5},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.MOVING,
+		},
+	}
+	testResult = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 10, 5, 1, time.UTC),
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// Test multiple bots
+	rob := schemas.Bots{
+		ID:         2,
+		Identifier: "test 2",
+		Name:       "Rob",
+	}
+	testLedger = []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:               0,
+				New_Y:               0,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:               5,
+				New_Y:               5,
+			},
+		},
+		{
+			Bots: bob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 1, time.UTC),
+				New_X:               -5,
+				New_Y:               -5,
+			},
+		},
+		{
+			Bots: rob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 1, time.UTC),
+				New_X:               3,
+				New_Y:               3,
+			},
+		},
+		{
+			Bots: rob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 2, time.UTC),
+				New_X:               -5,
+				New_Y:               -5,
+			},
+		},
+		{
+			Bots: rob,
+			BotActions: schemas.BotActions{
+				Bot_ID:              1,
+				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 8, time.UTC),
+				New_X:               100,
+				New_Y:               100,
+			},
+		},
+	}
+	expectedBots = []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: -5, Y: -5},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.MOVING,
+		},
+		{
+			Coordinates: api.Coordinates{X: 100, Y: 100},
+			Identifier:  "test 2",
+			Name:        "Rob",
+			Status:      api.MOVING,
+		},
+	}
+	testResult = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 59, 5, 13, time.UTC),
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// TODO: Test cases where bots are on their way to their destination
+
 }

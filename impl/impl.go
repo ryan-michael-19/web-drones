@@ -66,10 +66,9 @@ func GetBotLocation(
 	movementStartTime time.Time, currentTime time.Time, botVelocity float64,
 ) (api.Coordinates, error) {
 	if currentTime.Before(movementStartTime) {
-		return api.Coordinates{X: 0, Y: 0}, &GetBotLocationError{message: "Current time cannot be before movement start time"}
+		return api.Coordinates{X: 0, Y: 0}, &GetBotLocationError{
+			message: "Current time cannot be before movement start time"}
 	}
-	// handle when bot is at destination location
-	// Determine how long it would take to get destination
 	movementVector := api.Coordinates{
 		X: destinationCoordinates.X - initialCoordinates.X, Y: destinationCoordinates.Y - initialCoordinates.Y,
 	}
@@ -91,44 +90,90 @@ func GetBotLocation(
 	return currentLocation, nil
 }
 
+func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []api.Bot {
+	var bots []api.Bot
+	// TODO: Clean this up
+	currentBotID := ledger[0].Identifier
+	currentBotCoords := api.Coordinates{X: ledger[0].New_X, Y: ledger[0].New_Y}
+	for i := range ledger[:len(ledger)-1] {
+		if currentBotID == ledger[i+1].Identifier {
+			// continue calculating velocity
+			var err error
+			currentBotCoords, err = GetBotLocation(
+				currentBotCoords,
+				api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y},
+				ledger[i].Time_Action_Started,
+				ledger[i+1].Time_Action_Started,
+				0.5,
+			)
+			if err != nil {
+				logger.Fatal(err)
+			}
+		} else {
+			// We need the final position of the bot based on the last action
+			// it has recieved
+			var err error
+			currentBotCoords, err = GetBotLocation(
+				currentBotCoords,
+				api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y},
+				ledger[i].Time_Action_Started,
+				currentDatetime,
+				0.5,
+			)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			// append this bot to array and start making new one
+			bots = append(bots, api.Bot{
+				Coordinates: currentBotCoords,
+				Identifier:  ledger[i].Identifier,
+				Name:        ledger[i].Name,
+				Status:      api.MOVING,
+			})
+			currentBotID = ledger[i+1].Identifier
+			currentBotCoords = api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y}
+		}
+	}
+	last := len(ledger) - 1
+	var err error
+	currentBotCoords, err = GetBotLocation(
+		currentBotCoords,
+		api.Coordinates{X: ledger[last].New_X, Y: ledger[last].New_Y},
+		ledger[last].Time_Action_Started,
+		currentDatetime,
+		0.5,
+	)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	// append the last bot
+	bots = append(bots, api.Bot{
+		Coordinates: currentBotCoords,
+		Identifier:  ledger[last].Identifier,
+		Name:        ledger[last].Name,
+		Status:      api.MOVING,
+	})
+	return bots
+}
+
 // (GET /bots)
 func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(ctx,
 		"SELECT bots.Identifier, bots.Name,"+
-			" bot_actions.New_X, bot_actions.New_Y, bot_actions.Time_Action_Started"+
+			" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started"+
 			" FROM bots"+
 			" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id"+
-			" ORDER BY bot_actions.Time_Action_Started DESC",
+			" ORDER BY bot_actions.Time_Action_Started ASC",
 	)
 	if err != nil {
 		logger.Fatal(err)
 	}
 	defer rows.Close()
-	var resp []api.Bot
-	now := time.Now()
-	// TODO: Change to CollectRows
-	for rows.Next() {
-		var bot BotsWithActions
-		rows.Scan(
-			&bot.Identifier, &bot.Name,
-			&bot.New_X, &bot.New_Y, &bot.Time_Action_Started,
-		)
-		loc, err := GetBotLocation(
-			api.Coordinates{X: bot.New_X, Y: bot.New_Y},
-			api.Coordinates{X: float64(bot.New_X), Y: float64(bot.New_Y)},
-			bot.Time_Action_Started, now,
-			0.5,
-		)
-		if err != nil {
-			fmt.Println(err)
-			loc = api.Coordinates{X: math.NaN(), Y: math.NaN()}
-		}
-		resp = append(resp, api.Bot{
-			Coordinates: loc,
-			Identifier:  bot.Identifier,
-			Name:        bot.Name,
-		})
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	if err != nil {
+		logger.Fatal(err)
 	}
+	resp := GetBotsFromLedger(ledger, time.Now())
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
 }
