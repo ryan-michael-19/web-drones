@@ -33,7 +33,7 @@ type Bots struct {
 type BotActions struct {
 	Metadata
 	ID                  int `db:"-"`
-	Bot_ID              int `db:"-"`
+	Bot_Key             int `db:"-"`
 	Time_Action_Started time.Time
 	New_X               float64
 	New_Y               float64

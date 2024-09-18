@@ -92,11 +92,10 @@ func GetBotLocation(
 
 func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []api.Bot {
 	var bots []api.Bot
-	// TODO: Clean this up
-	currentBotID := ledger[0].Identifier
 	currentBotCoords := api.Coordinates{X: ledger[0].New_X, Y: ledger[0].New_Y}
-	for i := range ledger[:len(ledger)-1] {
-		if currentBotID == ledger[i+1].Identifier {
+	for i := range ledger {
+		// check if the next record exists and refers to the same bot
+		if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
 			// continue calculating velocity
 			var err error
 			currentBotCoords, err = GetBotLocation(
@@ -123,36 +122,15 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			if err != nil {
 				logger.Fatal(err)
 			}
-			// append this bot to array and start making new one
-			bots = append(bots, api.Bot{
+			bot := api.Bot{
 				Coordinates: currentBotCoords,
 				Identifier:  ledger[i].Identifier,
 				Name:        ledger[i].Name,
 				Status:      api.MOVING,
-			})
-			currentBotID = ledger[i+1].Identifier
-			currentBotCoords = api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y}
+			}
+			bots = append(bots, bot)
 		}
 	}
-	last := len(ledger) - 1
-	var err error
-	currentBotCoords, err = GetBotLocation(
-		currentBotCoords,
-		api.Coordinates{X: ledger[last].New_X, Y: ledger[last].New_Y},
-		ledger[last].Time_Action_Started,
-		currentDatetime,
-		0.5,
-	)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	// append the last bot
-	bots = append(bots, api.Bot{
-		Coordinates: currentBotCoords,
-		Identifier:  ledger[last].Identifier,
-		Name:        ledger[last].Name,
-		Status:      api.MOVING,
-	})
 	return bots
 }
 
