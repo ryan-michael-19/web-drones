@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -134,15 +135,16 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 	return bots
 }
 
+var botsWithActionsQuery = "" + // empty string gets around linter weirdness
+	"SELECT bots.Identifier, bots.Name," +
+	" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started" +
+	" FROM bots" +
+	" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id" +
+	" ORDER BY bot_actions.Time_Action_Started ASC"
+
 // (GET /bots)
 func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query(ctx,
-		"SELECT bots.Identifier, bots.Name,"+
-			" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started"+
-			" FROM bots"+
-			" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id"+
-			" ORDER BY bot_actions.Time_Action_Started ASC",
-	)
+	rows, err := db.Query(ctx, botsWithActionsQuery)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -158,12 +160,16 @@ func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 
 // (GET /bots/{botId})
 func (Server) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string) {
-	resp := api.Bot{
-		Coordinates: api.Coordinates{X: 55, Y: 78},
-		Identifier:  "Another random Id",
-		Name:        "Boop Beep",
-		Status:      api.IDLE,
+	rows, err := db.Query(ctx, botsWithActionsQuery+" WHERE bots.Identifier = $1", botId)
+	if err != nil {
+		logger.Fatal(err)
 	}
+	defer rows.Close()
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	if err != nil {
+		logger.Fatal(err)
+	}
+	resp := GetBotsFromLedger(ledger, time.Now())
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
 }
@@ -183,15 +189,16 @@ func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	uuid := uuid.NewString()
 	batch := &pgx.Batch{}
 	batch.Queue(
 		BuildInsert("bots", "Identifier", "Name"),
-		"definitely-a-uuid", "Big Chungus",
+		uuid, "Bob",
 	)
 	batch.Queue(
 		"INSERT INTO bot_actions (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)"+
 			" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)",
-		"definitely-a-uuid", 55, 80,
+		uuid, 0, 0,
 	)
 	mineCount := 10
 	for range mineCount {
