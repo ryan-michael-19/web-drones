@@ -6,12 +6,11 @@ import (
 	"context"
 	"log"
 	"math"
+	"reflect"
 	"strings"
 
-	"encoding/json"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,7 +32,6 @@ func BuildInsert(tableName string, colNames ...string) string {
 	valString := "NOW(),NULL,NULL," + strings.Join(valueFormats, ",")
 	colString := "created_at,updated_at,deleted_at," + strings.Join(colNames, ",")
 	sqlString := "INSERT INTO " + tableName + "(" + colString + ") VALUES (" + valString + ")"
-	fmt.Println(sqlString)
 	return sqlString
 }
 
@@ -51,8 +49,9 @@ func BuildLogger() *log.Logger {
 }
 
 var db = schemas.OpenDB()
-var ctx = context.Background()
+var global_ctx = context.Background()
 var logger = BuildLogger()
+var botVelocity = 0.5
 
 type GetBotLocationError struct {
 	message string
@@ -104,7 +103,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 				api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y},
 				ledger[i].Time_Action_Started,
 				ledger[i+1].Time_Action_Started,
-				0.5,
+				botVelocity,
 			)
 			if err != nil {
 				logger.Fatal(err)
@@ -118,16 +117,24 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 				api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y},
 				ledger[i].Time_Action_Started,
 				currentDatetime,
-				0.5,
+				botVelocity,
 			)
 			if err != nil {
 				logger.Fatal(err)
 			}
+			var botStatus api.BotStatus
+			// Set bot to idle if it is at the coordinates of its last move action
+			if reflect.DeepEqual(currentBotCoords, api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y}) {
+				botStatus = api.IDLE
+			} else {
+				botStatus = api.MOVING
+			}
+
 			bot := api.Bot{
 				Coordinates: currentBotCoords,
 				Identifier:  ledger[i].Identifier,
 				Name:        ledger[i].Name,
-				Status:      api.MOVING,
+				Status:      botStatus,
 			}
 			bots = append(bots, bot)
 		}
@@ -142,8 +149,20 @@ var botsWithActionsQuery = "" + // empty string gets around linter weirdness
 	" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id" +
 	" ORDER BY bot_actions.Time_Action_Started ASC"
 
+var botsWithActionsAndFilterQuery = "" +
+	"SELECT bots.Identifier, bots.Name," +
+	" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started" +
+	" FROM bots" +
+	" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id" +
+	" WHERE bots.Identifier = $1" +
+	" ORDER BY bot_actions.Time_Action_Started ASC"
+
+var insertMoveActionQuery = "" +
+	"INSERT INTO bot_actions (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)" +
+	" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)"
+
 // (GET /bots)
-func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
+func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
 	rows, err := db.Query(ctx, botsWithActionsQuery)
 	if err != nil {
 		logger.Fatal(err)
@@ -153,14 +172,12 @@ func (Server) GetBots(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	resp := GetBotsFromLedger(ledger, time.Now())
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	return api.GetBots200JSONResponse(GetBotsFromLedger(ledger, time.Now())), nil
 }
 
 // (GET /bots/{botId})
-func (Server) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string) {
-	rows, err := db.Query(ctx, botsWithActionsQuery+" WHERE bots.Identifier = $1", botId)
+func (Server) GetBotsBotId(ctx context.Context, request api.GetBotsBotIdRequestObject) (api.GetBotsBotIdResponseObject, error) {
+	rows, err := db.Query(ctx, botsWithActionsAndFilterQuery, request.BotId)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -169,13 +186,12 @@ func (Server) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	resp := GetBotsFromLedger(ledger, time.Now())
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	bot := GetBotsFromLedger(ledger, time.Now())[0]
+	return api.GetBotsBotId200JSONResponse(bot), nil
 }
 
 // (POST /init)
-func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
+func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (api.PostInitResponseObject, error) {
 	// TODO: Use transactions
 	// tx, err := db.Begin(ctx)
 	// if err != nil {
@@ -195,17 +211,14 @@ func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
 		BuildInsert("bots", "Identifier", "Name"),
 		uuid, "Bob",
 	)
-	batch.Queue(
-		"INSERT INTO bot_actions (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)"+
-			" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)",
-		uuid, 0, 0,
-	)
+	batch.Queue(insertMoveActionQuery, uuid, 0, 0)
 	mineCount := 10
+	mineDistanceMax := 100.0
+	mineDistanceMin := -100.0
 	for range mineCount {
-		batch.Queue(
-			BuildInsert("mines", "X", "Y"),
-			rand.Float64(), rand.Float64(),
-		)
+		x := mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
+		y := mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
+		batch.Queue(BuildInsert("mines", "X", "Y"), x, y)
 	}
 	err = db.SendBatch(ctx, batch).Close()
 	if err != nil {
@@ -213,48 +226,59 @@ func (Server) PostInit(w http.ResponseWriter, r *http.Request) {
 	}
 	// tx.Rollback(ctx)
 	// TODO: Update openapi to include bots and mines in response
-	rows, err := db.Query(ctx,
-		"SELECT bots.Identifier, bots.Name, bot_actions.Time_Action_Started, bot_actions.New_X, bot_actions.New_Y"+
-			" FROM bots JOIN bot_actions ON bot_actions.bot_id = bots.id",
-	)
+	rows, err := db.Query(ctx, botsWithActionsQuery)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	resp, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
 	if err != nil {
 		logger.Fatal(err)
 	}
-	// tx.Commit(ctx)
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	bot := GetBotsFromLedger(ledger, time.Now())[0]
+	mines := make([]api.Coordinates, 0)
+	resp := api.PostInit200JSONResponse{
+		Bot:   &bot,
+		Mines: &mines,
+	}
+	return api.PostInit200JSONResponse(resp), nil
 }
 
 // (POST /bots/{botId}/move)
-func (Server) PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string) {
-	// TODO: IMPLEMENT THIS
-	var bot schemas.Bots
-	var newCoords api.Coordinates
-	err := json.NewDecoder(r.Body).Decode(&newCoords)
+func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMoveRequestObject) (api.PostBotsBotIdMoveResponseObject, error) {
+	status, err := db.Exec(
+		global_ctx, insertMoveActionQuery,
+		request.BotId, request.Body.X, request.Body.Y)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
-
-	resp := api.Bot{
-		Identifier:  bot.Identifier,
-		Name:        bot.Name,
-		Status:      api.MOVING,
-		Coordinates: newCoords,
+	if status.RowsAffected() != 1 {
+		log.Fatalf(
+			"Expected 1 row to be affected but %d were affected",
+			status.RowsAffected())
 	}
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	rows, err := db.Query(
+		global_ctx, botsWithActionsAndFilterQuery, request.BotId,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	if err != nil {
+		log.Fatal(err)
+	}
+	resp := GetBotsFromLedger(ledger, time.Now())[0]
+	return api.PostBotsBotIdMove200JSONResponse(resp), nil
 }
 
 // (GET /mines)
-func (Server) GetMines(w http.ResponseWriter, r *http.Request) {
-	resp := []api.Coordinates{
-		{X: 1, Y: 1},
+func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (api.GetMinesResponseObject, error) {
+	rows, err := db.Query(global_ctx, "SELECT mines.x, mines.y FROM mines")
+	if err != nil {
+		log.Fatal(err)
 	}
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	mines, err := pgx.CollectRows(rows, pgx.RowToStructByName[api.Coordinates])
+	if err != nil {
+		log.Fatal(err)
+	}
+	return api.GetMines200JSONResponse(mines), nil
 }

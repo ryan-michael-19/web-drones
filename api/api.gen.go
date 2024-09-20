@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/oapi-codegen/runtime"
+	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
 // Defines values for BotStatus.
@@ -478,6 +479,7 @@ func (r GetBotsBotIdResponse) StatusCode() int {
 type PostBotsBotIdMoveResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	JSON200      *Bot
 }
 
 // Status returns HTTPResponse.Status
@@ -499,7 +501,10 @@ func (r PostBotsBotIdMoveResponse) StatusCode() int {
 type PostInitResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
-	JSON200      *Bot
+	JSON200      *struct {
+		Bot   *Bot           `json:"bot,omitempty"`
+		Mines *[]Coordinates `json:"mines,omitempty"`
+	}
 }
 
 // Status returns HTTPResponse.Status
@@ -658,6 +663,16 @@ func ParsePostBotsBotIdMoveResponse(rsp *http.Response) (*PostBotsBotIdMoveRespo
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Bot
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
 	return response, nil
 }
 
@@ -676,7 +691,10 @@ func ParsePostInitResponse(rsp *http.Response) (*PostInitResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Bot
+		var dest struct {
+			Bot   *Bot           `json:"bot,omitempty"`
+			Mines *[]Coordinates `json:"mines,omitempty"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -959,4 +977,269 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/mines", wrapper.GetMines)
 
 	return m
+}
+
+type GetBotsRequestObject struct {
+}
+
+type GetBotsResponseObject interface {
+	VisitGetBotsResponse(w http.ResponseWriter) error
+}
+
+type GetBots200JSONResponse []Bot
+
+func (response GetBots200JSONResponse) VisitGetBotsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBotsBotIdRequestObject struct {
+	BotId string `json:"botId"`
+}
+
+type GetBotsBotIdResponseObject interface {
+	VisitGetBotsBotIdResponse(w http.ResponseWriter) error
+}
+
+type GetBotsBotId200JSONResponse Bot
+
+func (response GetBotsBotId200JSONResponse) VisitGetBotsBotIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostBotsBotIdMoveRequestObject struct {
+	BotId string `json:"botId"`
+	Body  *PostBotsBotIdMoveJSONRequestBody
+}
+
+type PostBotsBotIdMoveResponseObject interface {
+	VisitPostBotsBotIdMoveResponse(w http.ResponseWriter) error
+}
+
+type PostBotsBotIdMove200JSONResponse Bot
+
+func (response PostBotsBotIdMove200JSONResponse) VisitPostBotsBotIdMoveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostInitRequestObject struct {
+}
+
+type PostInitResponseObject interface {
+	VisitPostInitResponse(w http.ResponseWriter) error
+}
+
+type PostInit200JSONResponse struct {
+	Bot   *Bot           `json:"bot,omitempty"`
+	Mines *[]Coordinates `json:"mines,omitempty"`
+}
+
+func (response PostInit200JSONResponse) VisitPostInitResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMinesRequestObject struct {
+}
+
+type GetMinesResponseObject interface {
+	VisitGetMinesResponse(w http.ResponseWriter) error
+}
+
+type GetMines200JSONResponse []Coordinates
+
+func (response GetMines200JSONResponse) VisitGetMinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+
+	// (GET /bots)
+	GetBots(ctx context.Context, request GetBotsRequestObject) (GetBotsResponseObject, error)
+
+	// (GET /bots/{botId})
+	GetBotsBotId(ctx context.Context, request GetBotsBotIdRequestObject) (GetBotsBotIdResponseObject, error)
+
+	// (POST /bots/{botId}/move)
+	PostBotsBotIdMove(ctx context.Context, request PostBotsBotIdMoveRequestObject) (PostBotsBotIdMoveResponseObject, error)
+
+	// (POST /init)
+	PostInit(ctx context.Context, request PostInitRequestObject) (PostInitResponseObject, error)
+
+	// (GET /mines)
+	GetMines(ctx context.Context, request GetMinesRequestObject) (GetMinesResponseObject, error)
+}
+
+type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
+type StrictMiddlewareFunc = strictnethttp.StrictHTTPMiddlewareFunc
+
+type StrictHTTPServerOptions struct {
+	RequestErrorHandlerFunc  func(w http.ResponseWriter, r *http.Request, err error)
+	ResponseErrorHandlerFunc func(w http.ResponseWriter, r *http.Request, err error)
+}
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictHTTPServerOptions{
+		RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		},
+		ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictHTTPServerOptions) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+	options     StrictHTTPServerOptions
+}
+
+// GetBots operation middleware
+func (sh *strictHandler) GetBots(w http.ResponseWriter, r *http.Request) {
+	var request GetBotsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBots(ctx, request.(GetBotsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBots")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBotsResponseObject); ok {
+		if err := validResponse.VisitGetBotsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBotsBotId operation middleware
+func (sh *strictHandler) GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string) {
+	var request GetBotsBotIdRequestObject
+
+	request.BotId = botId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBotsBotId(ctx, request.(GetBotsBotIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBotsBotId")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBotsBotIdResponseObject); ok {
+		if err := validResponse.VisitGetBotsBotIdResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostBotsBotIdMove operation middleware
+func (sh *strictHandler) PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string) {
+	var request PostBotsBotIdMoveRequestObject
+
+	request.BotId = botId
+
+	var body PostBotsBotIdMoveJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostBotsBotIdMove(ctx, request.(PostBotsBotIdMoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostBotsBotIdMove")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostBotsBotIdMoveResponseObject); ok {
+		if err := validResponse.VisitPostBotsBotIdMoveResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostInit operation middleware
+func (sh *strictHandler) PostInit(w http.ResponseWriter, r *http.Request) {
+	var request PostInitRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostInit(ctx, request.(PostInitRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostInit")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostInitResponseObject); ok {
+		if err := validResponse.VisitPostInitResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMines operation middleware
+func (sh *strictHandler) GetMines(w http.ResponseWriter, r *http.Request) {
+	var request GetMinesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMines(ctx, request.(GetMinesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMines")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMinesResponseObject); ok {
+		if err := validResponse.VisitGetMinesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }

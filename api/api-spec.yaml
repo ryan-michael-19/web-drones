@@ -12,7 +12,14 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Bot"
+                type: object
+                properties:
+                  bot:
+                    $ref: "#/components/schemas/Bot"
+                  mines:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Coordinates"
   /bots:
     get:
       description: Get a list of bots and what they're doing
@@ -54,6 +61,12 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Coordinates'
+      responses:
+        '200':
+          'content':
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bot'
   /mines:
     get:
       description: Get the coordinates of mines
