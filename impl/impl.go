@@ -35,7 +35,8 @@ func BuildInsert(tableName string, colNames ...string) string {
 	return sqlString
 }
 
-func BuildBotAction(ctx context.Context, bot_uuid string, x int64, y int64) {
+func InRange(val1 float64, val2 float64) bool {
+	return math.Abs(val1-val2) < 1e-2
 }
 
 type BotsWithActions struct {
@@ -52,6 +53,24 @@ var db = schemas.OpenDB()
 var global_ctx = context.Background()
 var logger = BuildLogger()
 var botVelocity = 0.5
+
+func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
+	// TODO: Make sure mines don't respawn on top of each other
+	return mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin),
+		mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
+}
+
+func GetMinesFromDB() []api.Coordinates {
+	rows, err := db.Query(global_ctx, "SELECT mines.x, mines.y FROM mines")
+	if err != nil {
+		log.Fatal(err)
+	}
+	mines, err := pgx.CollectRows(rows, pgx.RowToStructByName[api.Coordinates])
+	if err != nil {
+		log.Fatal(err)
+	}
+	return mines
+}
 
 type GetBotLocationError struct {
 	message string
@@ -101,8 +120,8 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			currentBotCoords, err = GetBotLocation(
 				currentBotCoords,
 				api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y},
-				ledger[i].Time_Action_Started,
-				ledger[i+1].Time_Action_Started,
+				ledger[i].TimeActionStarted,
+				ledger[i+1].TimeActionStarted,
 				botVelocity,
 			)
 			if err != nil {
@@ -115,7 +134,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			currentBotCoords, err = GetBotLocation(
 				currentBotCoords,
 				api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y},
-				ledger[i].Time_Action_Started,
+				ledger[i].TimeActionStarted,
 				currentDatetime,
 				botVelocity,
 			)
@@ -144,21 +163,21 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 
 var botsWithActionsQuery = "" + // empty string gets around linter weirdness
 	"SELECT bots.Identifier, bots.Name," +
-	" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started" +
+	" bot_movement_ledger.new_x, bot_movement_ledger.new_y, bot_movement_ledger.time_action_started" +
 	" FROM bots" +
-	" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id" +
-	" ORDER BY bot_actions.Time_Action_Started ASC"
+	" LEFT JOIN bot_movement_ledger ON bots.ID = bot_movement_ledger.bot_id" +
+	" ORDER BY bot_movement_ledger.Time_Action_Started ASC"
 
 var botsWithActionsAndFilterQuery = "" +
 	"SELECT bots.Identifier, bots.Name," +
-	" bot_actions.new_x, bot_actions.new_y, bot_actions.time_action_started" +
+	" bot_movement_ledger.new_x, bot_movement_ledger.new_y, bot_movement_ledger.time_action_started" +
 	" FROM bots" +
-	" LEFT JOIN bot_actions ON bots.ID = bot_actions.bot_id" +
+	" LEFT JOIN bot_movement_ledger ON bots.ID = bot_movement_ledger.bot_id" +
 	" WHERE bots.Identifier = $1" +
-	" ORDER BY bot_actions.Time_Action_Started ASC"
+	" ORDER BY bot_movement_ledger.Time_Action_Started ASC"
 
 var insertMoveActionQuery = "" +
-	"INSERT INTO bot_actions (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)" +
+	"INSERT INTO bot_movement_ledger (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)" +
 	" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)"
 
 // (GET /bots)
@@ -190,6 +209,96 @@ func (Server) GetBotsBotId(ctx context.Context, request api.GetBotsBotIdRequestO
 	return api.GetBotsBotId200JSONResponse(bot), nil
 }
 
+// (POST /bots/{botId}/mine)
+func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMineRequestObject) (api.PostBotsBotIdMineResponseObject, error) {
+	rows, err := db.Query(ctx, botsWithActionsAndFilterQuery, request.BotId)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer rows.Close()
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	if err != nil {
+		logger.Fatal(err)
+	}
+	bot := GetBotsFromLedger(ledger, time.Now())[0]
+	var currentMine *api.Coordinates = nil
+	for _, mine := range GetMinesFromDB() {
+		if InRange(bot.Coordinates.X, mine.X) && InRange(bot.Coordinates.Y, mine.Y) {
+			currentMine = &mine
+		}
+	}
+	if currentMine == nil {
+		return api.PostBotsBotIdMine422TextResponse("Bot is not currently near a mine"), nil
+	} else {
+		// Add scrap metal to bot's inventory.
+		// Then delete the mine and create a new one.
+		batch := &pgx.Batch{}
+		batch.Queue(
+			"UPDATE bots SET inventory_count = inventory_count + 1 updated_at = NOW() WHERE identifier = $1",
+			bot.Identifier,
+		)
+		x, y := NewRandomCoordinates(-100, 100)
+		batch.Queue(
+			BuildInsert("mines", "x", "y"), x, y,
+		)
+		err := db.SendBatch(global_ctx, batch).Close()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		return api.PostBotsBotIdMine200JSONResponse(bot), nil
+	}
+}
+
+// (POST /bots/{botId}/newBot)
+func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotIdNewBotRequestObject) (api.PostBotsBotIdNewBotResponseObject, error) {
+	rows, err := db.Query(ctx, botsWithActionsAndFilterQuery, request.BotId)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	defer rows.Close()
+	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
+	if err != nil {
+		logger.Fatal(err)
+	}
+	bot := GetBotsFromLedger(ledger, time.Now())[0]
+	if bot.Inventory >= 3 {
+		batch := &pgx.Batch{}
+		batch.Queue(
+			"UPDATE bots SET inventory_count = inventory_count - 3 updated_at = NOW() WHERE identifier = $1",
+			bot.Identifier,
+		)
+		uuid := uuid.NewString()
+		batch.Queue(
+			BuildInsert(
+				"bots", "identifier", "inventory_count", "name",
+			),
+			uuid, 0, request.Body.NewBotName,
+		)
+		batch.Queue(
+			insertMoveActionQuery,
+			// TODO: Make new bot coordinates some random interval away from the making bot
+			uuid, bot.Coordinates.X, bot.Coordinates.Y,
+		)
+		err := db.SendBatch(global_ctx, batch).Close()
+		if err != nil {
+			logger.Fatal(err)
+		}
+		// TODO: Get bot from database??
+		return api.PostBotsBotIdNewBot200JSONResponse(
+			api.Bot{
+				Coordinates: bot.Coordinates,
+				Identifier:  uuid,
+				Inventory:   0,
+				Name:        request.Body.NewBotName,
+				Status:      api.IDLE,
+			},
+		), nil
+	} else {
+		return api.PostBotsBotIdNewBot422TextResponse("Bot doesn't have enough scrap metal."), nil
+	}
+
+}
+
 // (POST /init)
 func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (api.PostInitResponseObject, error) {
 	// TODO: Use transactions
@@ -198,7 +307,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 	// logger.Fatal(err)
 	// }
 	_, err := db.Exec(ctx,
-		"DELETE FROM bot_actions WHERE 1=1 ;"+
+		"DELETE FROM bot_movement_ledger WHERE 1=1 ;"+
 			" DELETE FROM bots WHERE 1=1 ;"+
 			" DELETE FROM mines WHERE 1=1",
 	)
@@ -216,8 +325,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 	mineDistanceMax := 100.0
 	mineDistanceMin := -100.0
 	for range mineCount {
-		x := mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
-		y := mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
+		x, y := NewRandomCoordinates(mineDistanceMin, mineDistanceMax)
 		batch.Queue(BuildInsert("mines", "X", "Y"), x, y)
 	}
 	err = db.SendBatch(ctx, batch).Close()
@@ -272,13 +380,6 @@ func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMo
 
 // (GET /mines)
 func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (api.GetMinesResponseObject, error) {
-	rows, err := db.Query(global_ctx, "SELECT mines.x, mines.y FROM mines")
-	if err != nil {
-		log.Fatal(err)
-	}
-	mines, err := pgx.CollectRows(rows, pgx.RowToStructByName[api.Coordinates])
-	if err != nil {
-		log.Fatal(err)
-	}
+	mines := GetMinesFromDB()
 	return api.GetMines200JSONResponse(mines), nil
 }

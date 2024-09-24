@@ -1,12 +1,12 @@
 openapi: 3.0.0
 info:
   version: 1.0.0
-  title: ColoBots
-  description: Api to play ColoBots!
+  title: Web Drones
+  description: Api to play Web Drones!
 paths:
   /init:
     post:
-      description: initialize the game with mining locations and single bot (temporary)
+      description: initialize the game with mining locations and a single bot (temporary)
       responses:
         '200':
           content:
@@ -22,7 +22,7 @@ paths:
                       $ref: "#/components/schemas/Coordinates"
   /bots:
     get:
-      description: Get a list of bots and what they're doing
+      description: Get an array of bots and what they're doing
       responses:
         '200':
           content:
@@ -67,6 +67,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Bot'
+  /bots/{botId}/mine:
+    post:
+      description: Mine scrap metal from bot's current location. Only works when bot is near a mine.
+      parameters:
+        - name: botId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bot'
+        '422':
+          description: Sent when bot is not currently near a mine
+          content:
+            text/plain:
+              schema:
+                type: string
+  /bots/{botId}/newBot:
+    post:
+      description: Make a new bot from scrap metal. A bot must have 3 scrap in their inventory to do this.
+      parameters:
+        - name: botId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                NewBotName:
+                  type: string
+              required:
+                - NewBotName
+              
+      responses:
+        '200':
+          description: Information about the newly created bot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        '422':
+          description: Sent when requested bot does not have enough scrap to make a new one.
+          content:
+            text/plain:
+              schema:
+                type: string
   /mines:
     get:
       description: Get the coordinates of mines
@@ -94,11 +149,14 @@ components:
           enum: ["IDLE", "MOVING", "MINING"]
         coordinates:
           $ref: '#/components/schemas/Coordinates'
+        inventory:
+          type: integer
       required:
         - identifier
         - name
         - status
         - coordinates
+        - inventory
     Coordinates:
       type: object
       properties:
@@ -111,3 +169,6 @@ components:
       required:
         - x
         - y
+    Error:
+      type: string
+      

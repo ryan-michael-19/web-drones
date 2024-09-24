@@ -25,18 +25,19 @@ type Metadata struct {
 
 type Bots struct {
 	Metadata
-	ID         int `db:"-"`
-	Identifier string
-	Name       string
+	ID             int `db:"-"`
+	Identifier     string
+	Name           string
+	InventoryCount int
 }
 
 type BotActions struct {
 	Metadata
-	ID                  int `db:"-"`
-	Bot_Key             int `db:"-"`
-	Time_Action_Started time.Time
-	New_X               float64
-	New_Y               float64
+	ID                int `db:"-"`
+	Bot_Key           int `db:"-"`
+	TimeActionStarted time.Time
+	New_X             float64
+	New_Y             float64
 }
 
 type Mines struct {

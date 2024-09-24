@@ -94,19 +94,19 @@ func TestGetBotsFromLedger(t *testing.T) {
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:               0,
-				New_Y:               0,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:             0,
+				New_Y:             0,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 14, 0, time.UTC), // just before reaching destination
-				New_X:               5,
-				New_Y:               5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 14, 0, time.UTC), // just before reaching destination
+				New_X:             5,
+				New_Y:             5,
 			},
 		},
 	}
@@ -130,28 +130,28 @@ func TestGetBotsFromLedger(t *testing.T) {
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:               0,
-				New_Y:               0,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:             0,
+				New_Y:             0,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:               5,
-				New_Y:               5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:             5,
+				New_Y:             5,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 25, 0, time.UTC),
-				New_X:               -5,
-				New_Y:               -5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 25, 0, time.UTC),
+				New_X:             -5,
+				New_Y:             -5,
 			},
 		},
 	}
@@ -175,28 +175,28 @@ func TestGetBotsFromLedger(t *testing.T) {
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:               0,
-				New_Y:               0,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:             0,
+				New_Y:             0,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:               5,
-				New_Y:               5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:             5,
+				New_Y:             5,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
-				New_X:               -5,
-				New_Y:               -5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
+				New_X:             -5,
+				New_Y:             -5,
 			},
 		},
 	}
@@ -225,55 +225,55 @@ func TestGetBotsFromLedger(t *testing.T) {
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:               0,
-				New_Y:               0,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				New_X:             0,
+				New_Y:             0,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:               5,
-				New_Y:               5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				New_X:             5,
+				New_Y:             5,
 			},
 		},
 		{
 			Bots: bob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             1,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 10, 0, time.UTC),
-				New_X:               -5,
-				New_Y:               -5,
+				Bot_Key:           1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 10, 0, time.UTC),
+				New_X:             -5,
+				New_Y:             -5,
 			},
 		},
 		{
 			Bots: rob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             2,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
-				New_X:               3,
-				New_Y:               3,
+				Bot_Key:           2,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
+				New_X:             3,
+				New_Y:             3,
 			},
 		},
 		{
 			Bots: rob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             2,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 7, 0, time.UTC),
-				New_X:               -5,
-				New_Y:               -5,
+				Bot_Key:           2,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 7, 0, time.UTC),
+				New_X:             -5,
+				New_Y:             -5,
 			},
 		},
 		{
 			Bots: rob,
 			BotActions: schemas.BotActions{
-				Bot_Key:             2,
-				Time_Action_Started: time.Date(2024, 8, 26, 11, 8, 8, 0, time.UTC),
-				New_X:               100,
-				New_Y:               100,
+				Bot_Key:           2,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 8, 0, time.UTC),
+				New_X:             100,
+				New_Y:             100,
 			},
 		},
 	}
