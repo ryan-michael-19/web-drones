@@ -9,13 +9,16 @@ paths:
       description: initialize the game with mining locations and a single bot (temporary)
       responses:
         '200':
+          description: returns starting bots and mines
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  bot:
-                    $ref: "#/components/schemas/Bot"
+                  bots:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bot"
                   mines:
                     type: array
                     items:
@@ -25,6 +28,7 @@ paths:
       description: Get an array of bots and what they're doing
       responses:
         '200':
+          description: array of all bots
           content:
             application/json:
               schema:
@@ -42,6 +46,7 @@ paths:
             type: string
       responses:
         '200':
+          description: single bot with associated unique identifier
           content:
             application/json:
               schema:
@@ -63,6 +68,7 @@ paths:
               $ref: '#/components/schemas/Coordinates'
       responses:
         '200':
+          description: returns single bot with the Id that was commanded to move
           'content':
             application/json:
               schema:
@@ -78,6 +84,7 @@ paths:
             type: string
       responses:
         '200':
+          description: Returns bot that mined for scrap
           content:
             application/json:
               schema:
@@ -127,6 +134,7 @@ paths:
       description: Get the coordinates of mines
       responses:
         '200':
+          description: Returns coordinates of all mines in the world
           content:
             application/json:
               schema:

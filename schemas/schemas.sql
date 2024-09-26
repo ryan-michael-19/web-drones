@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS public.bot_actions; -- legacy
 DROP TABLE IF EXISTS public.bot_movement_ledger;
 DROP TABLE IF EXISTS public.bots;
 DROP TABLE IF EXISTS public.mines;
@@ -6,12 +7,9 @@ CREATE TABLE public.bots (
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    identifier text UNIQUE,
-    inventory_count smallint,
-    name text
-    -- status text,
-    -- x numeric,
-    -- y numeric
+    identifier text UNIQUE NOT NULL,
+    inventory_count smallint NOT NULL,
+    name text NOT NULL
 );
 
 CREATE TABLE public.bot_movement_ledger (
@@ -19,10 +17,10 @@ CREATE TABLE public.bot_movement_ledger (
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    bot_id bigint references bots(id),
-    time_action_started timestamp with time zone,
-    new_x numeric,
-    new_y numeric
+    bot_id bigint references bots(id) NOT NULL,
+    time_action_started timestamp with time zone NOT NULL,
+    new_x numeric NOT NULL,
+    new_y numeric NOT NULL
 );
 
 CREATE TABLE public.mines (
@@ -30,6 +28,6 @@ CREATE TABLE public.mines (
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    x numeric,
-    y numeric
+    x numeric NOT NULL,
+    y numeric NOT NULL
 );

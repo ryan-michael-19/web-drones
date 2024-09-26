@@ -473,7 +473,7 @@ type PostInitResponseObject interface {
 }
 
 type PostInit200JSONResponse struct {
-	Bot   *Bot           `json:"bot,omitempty"`
+	Bots  *[]Bot         `json:"bots,omitempty"`
 	Mines *[]Coordinates `json:"mines,omitempty"`
 }
 
