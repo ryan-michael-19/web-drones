@@ -49,10 +49,12 @@ func BuildLogger() *log.Logger {
 	return log.Default()
 }
 
-var db = schemas.OpenDB()
 var global_ctx = context.Background()
+var db = schemas.OpenDB(global_ctx)
 var logger = BuildLogger()
 var botVelocity = 0.5
+var mineMax = 50.0
+var mineMin = -50.0
 
 func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
 	// TODO: Make sure mines don't respawn on top of each other
@@ -243,7 +245,7 @@ func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMi
 			"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4",
 			currentMine.X, 1e-9, currentMine.Y, 1e-9,
 		)
-		x, y := NewRandomCoordinates(-100, 100)
+		x, y := NewRandomCoordinates(mineMin, mineMax)
 		batch.Queue(
 			BuildInsert("mines", "x", "y"), x, y,
 		)
@@ -319,10 +321,8 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 	)
 	batch.Queue(insertMoveActionQuery, uuid, 0, 0)
 	mineCount := 10
-	mineDistanceMax := 100.0
-	mineDistanceMin := -100.0
 	for range mineCount {
-		x, y := NewRandomCoordinates(mineDistanceMin, mineDistanceMax)
+		x, y := NewRandomCoordinates(mineMin, mineMax)
 		batch.Queue(BuildInsert("mines", "X", "Y"), x, y)
 	}
 	err = db.SendBatch(ctx, batch).Close()

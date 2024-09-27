@@ -8,8 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func OpenDB() *pgxpool.Pool {
+func OpenDB(ctx context.Context) *pgxpool.Pool {
 	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
+	if err != nil {
+		log.Fatal(err)
+	}
+	// make sure the database is up and running
+	_, err = conn.Exec(ctx, ";")
 	if err != nil {
 		log.Fatal(err)
 	}

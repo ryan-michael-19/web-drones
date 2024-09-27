@@ -37,7 +37,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = schemas.OpenDB().Exec(context.Background(), string(file))
+		ctx := context.Background()
+		_, err = schemas.OpenDB(ctx).Exec(ctx, string(file))
 		if err != nil {
 			log.Fatal(err)
 		}
