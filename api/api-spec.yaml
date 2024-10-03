@@ -4,56 +4,56 @@ info:
   title: Web Drones
   description: Api to play Web Drones!
 paths:
-  /login:
-    post:
-      description: Log in with username and password.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-      security: []
-      responses:
-        '200':
-          description: Returns login cookie on success
-          content:
-            text/plain:
-              schema:
-                type: string
-        '401':
-          description: Returns when login fails from bad username/password combo
-          content:
-            text/plain:
-              schema:
-                type: string
-  /newUser:
-    post:
-      description: Creates new user with associated password
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-      security: []
-      responses:
-        '200':
-          description: Returns login cookie on success
-          content:
-            text/plain:
-              schema:
-                type: string
+  # /login:
+  #   post:
+  #     description: Log in with username and password.
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               username:
+  #                 type: string
+  #               password:
+  #                 type: string
+  #     security: []
+  #     responses:
+  #       '200':
+  #         description: Returns login cookie on success
+  #         content:
+  #           text/plain:
+  #             schema:
+  #               type: string
+  #       '401':
+  #         description: Returns when login fails from bad username/password combo
+  #         content:
+  #           text/plain:
+  #             schema:
+  #               type: string
+  # /newUser:
+  #   post:
+  #     description: Creates new user with associated password
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               username:
+  #                 type: string
+  #               password:
+  #                 type: string
+  #     security: []
+  #     responses:
+  #       '200':
+  #         description: Returns login cookie on success
+  #         content:
+  #           text/plain:
+  #             schema:
+  #               type: string
   /init:
     post:
       description: initialize the game with mining locations and a single bot (temporary)
@@ -192,7 +192,6 @@ paths:
                 items:
                   $ref: '#/components/schemas/Coordinates'
 
-        
 components:
   securitySchemes:
     cookieAuth:
