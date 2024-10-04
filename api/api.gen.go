@@ -49,11 +49,29 @@ type PostBotsBotIdNewBotJSONBody struct {
 	NewBotName string `json:"NewBotName"`
 }
 
+// PostLoginJSONBody defines parameters for PostLogin.
+type PostLoginJSONBody struct {
+	Password *string `json:"password,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
+// PostNewUserJSONBody defines parameters for PostNewUser.
+type PostNewUserJSONBody struct {
+	Password *string `json:"password,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
 // PostBotsBotIdMoveJSONRequestBody defines body for PostBotsBotIdMove for application/json ContentType.
 type PostBotsBotIdMoveJSONRequestBody = Coordinates
 
 // PostBotsBotIdNewBotJSONRequestBody defines body for PostBotsBotIdNewBot for application/json ContentType.
 type PostBotsBotIdNewBotJSONRequestBody PostBotsBotIdNewBotJSONBody
+
+// PostLoginJSONRequestBody defines body for PostLogin for application/json ContentType.
+type PostLoginJSONRequestBody PostLoginJSONBody
+
+// PostNewUserJSONRequestBody defines body for PostNewUser for application/json ContentType.
+type PostNewUserJSONRequestBody PostNewUserJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -76,8 +94,14 @@ type ServerInterface interface {
 	// (POST /init)
 	PostInit(w http.ResponseWriter, r *http.Request)
 
+	// (POST /login)
+	PostLogin(w http.ResponseWriter, r *http.Request)
+
 	// (GET /mines)
 	GetMines(w http.ResponseWriter, r *http.Request)
+
+	// (POST /newUser)
+	PostNewUser(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -253,6 +277,20 @@ func (siw *ServerInterfaceWrapper) PostInit(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// PostLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetMines operation middleware
 func (siw *ServerInterfaceWrapper) GetMines(w http.ResponseWriter, r *http.Request) {
 
@@ -264,6 +302,20 @@ func (siw *ServerInterfaceWrapper) GetMines(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMines(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostNewUser operation middleware
+func (siw *ServerInterfaceWrapper) PostNewUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostNewUser(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -399,7 +451,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/move", wrapper.PostBotsBotIdMove)
 	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/newBot", wrapper.PostBotsBotIdNewBot)
 	m.HandleFunc("POST "+options.BaseURL+"/init", wrapper.PostInit)
+	m.HandleFunc("POST "+options.BaseURL+"/login", wrapper.PostLogin)
 	m.HandleFunc("GET "+options.BaseURL+"/mines", wrapper.GetMines)
+	m.HandleFunc("POST "+options.BaseURL+"/newUser", wrapper.PostNewUser)
 
 	return m
 }
@@ -529,6 +583,42 @@ func (response PostInit200JSONResponse) VisitPostInitResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type PostLoginRequestObject struct {
+	Body *PostLoginJSONRequestBody
+}
+
+type PostLoginResponseObject interface {
+	VisitPostLoginResponse(w http.ResponseWriter) error
+}
+
+type PostLogin200ResponseHeaders struct {
+	SetCookie string
+}
+
+type PostLogin200TextResponse struct {
+	Body    string
+	Headers PostLogin200ResponseHeaders
+}
+
+func (response PostLogin200TextResponse) VisitPostLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response.Body))
+	return err
+}
+
+type PostLogin401TextResponse string
+
+func (response PostLogin401TextResponse) VisitPostLoginResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(401)
+
+	_, err := w.Write([]byte(response))
+	return err
+}
+
 type GetMinesRequestObject struct {
 }
 
@@ -543,6 +633,32 @@ func (response GetMines200JSONResponse) VisitGetMinesResponse(w http.ResponseWri
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type PostNewUserRequestObject struct {
+	Body *PostNewUserJSONRequestBody
+}
+
+type PostNewUserResponseObject interface {
+	VisitPostNewUserResponse(w http.ResponseWriter) error
+}
+
+type PostNewUser200ResponseHeaders struct {
+	SetCookie string
+}
+
+type PostNewUser200TextResponse struct {
+	Body    string
+	Headers PostNewUser200ResponseHeaders
+}
+
+func (response PostNewUser200TextResponse) VisitPostNewUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
+	w.WriteHeader(200)
+
+	_, err := w.Write([]byte(response.Body))
+	return err
 }
 
 // StrictServerInterface represents all server handlers.
@@ -566,8 +682,14 @@ type StrictServerInterface interface {
 	// (POST /init)
 	PostInit(ctx context.Context, request PostInitRequestObject) (PostInitResponseObject, error)
 
+	// (POST /login)
+	PostLogin(ctx context.Context, request PostLoginRequestObject) (PostLoginResponseObject, error)
+
 	// (GET /mines)
 	GetMines(ctx context.Context, request GetMinesRequestObject) (GetMinesResponseObject, error)
+
+	// (POST /newUser)
+	PostNewUser(ctx context.Context, request PostNewUserRequestObject) (PostNewUserResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -765,6 +887,37 @@ func (sh *strictHandler) PostInit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// PostLogin operation middleware
+func (sh *strictHandler) PostLogin(w http.ResponseWriter, r *http.Request) {
+	var request PostLoginRequestObject
+
+	var body PostLoginJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostLogin(ctx, request.(PostLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostLogin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostLoginResponseObject); ok {
+		if err := validResponse.VisitPostLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetMines operation middleware
 func (sh *strictHandler) GetMines(w http.ResponseWriter, r *http.Request) {
 	var request GetMinesRequestObject
@@ -782,6 +935,37 @@ func (sh *strictHandler) GetMines(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetMinesResponseObject); ok {
 		if err := validResponse.VisitGetMinesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostNewUser operation middleware
+func (sh *strictHandler) PostNewUser(w http.ResponseWriter, r *http.Request) {
+	var request PostNewUserRequestObject
+
+	var body PostNewUserJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostNewUser(ctx, request.(PostNewUserRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostNewUser")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostNewUserResponseObject); ok {
+		if err := validResponse.VisitPostNewUserResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

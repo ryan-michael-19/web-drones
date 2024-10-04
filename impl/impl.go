@@ -341,6 +341,11 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 	return api.PostInit200JSONResponse(resp), nil
 }
 
+// (POST /login)
+func (Server) PostLogin(ctx context.Context, request api.PostLoginRequestObject) (api.PostLoginResponseObject, error) {
+	return api.PostLogin200TextResponse(response), nil
+}
+
 // (POST /bots/{botId}/move)
 func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMoveRequestObject) (api.PostBotsBotIdMoveResponseObject, error) {
 	status, err := db.Exec(
@@ -362,4 +367,16 @@ func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMo
 func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (api.GetMinesResponseObject, error) {
 	mines := GetMinesFromDB()
 	return api.GetMines200JSONResponse(mines), nil
+}
+
+// (POST /newUser)
+func (Server) PostNewUser(ctx context.Context, request api.PostNewUserRequestObject) (api.PostNewUserResponseObject, error) {
+	// TODO: NOT THIS YOUR SHIT WILL GET FUCKING WRECKED
+	BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE := uuid.New()
+	return api.PostNewUser200TextResponse{
+		Body: BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE.String(),
+		Headers: api.PostNewUser200ResponseHeaders{
+			SetCookie: BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE.String(),
+		},
+	}, nil
 }
