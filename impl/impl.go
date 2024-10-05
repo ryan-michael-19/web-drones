@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -56,7 +55,8 @@ var logger = BuildLogger()
 var botVelocity = 0.5
 var mineMax = 50.0
 var mineMin = -50.0
-var sessionStore = sessions.NewCookieStore() // TODO: Does this need a key?
+
+// var sessionStore = sessions.NewCookieStore() // TODO: Does this need a key?
 
 func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
 	// TODO: Make sure mines don't respawn on top of each other

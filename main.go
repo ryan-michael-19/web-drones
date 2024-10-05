@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/sessions"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 )
 
@@ -16,7 +17,15 @@ func main() {
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
-		m := []nethttp.StrictHTTPMiddlewareFunc{}
+		sessionStore := sessions.NewCookieStore() // TODO: Does this need a key?
+		m := []nethttp.StrictHTTPMiddlewareFunc{
+			func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+				return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+					sessionStore.Get(r, "session")
+					return f(ctx, w, r, request)
+				}
+			},
+		}
 		server := impl.NewServer()
 		// create a type that satisfies the `api.StrictServerInterface`, which contains an implementation of every operation from the generated code
 		i := api.NewStrictHandler(server, m)
