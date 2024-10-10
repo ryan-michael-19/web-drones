@@ -2,7 +2,9 @@ package schemas
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -50,4 +52,16 @@ type Mines struct {
 	ID int `db:"-"`
 	X  float64
 	Y  float64
+}
+
+func BuildInsert(tableName string, colNames ...string) string {
+	// TODO: This feels very injectable...
+	valueFormats := []string{} // ["$1", "$2", etc..]
+	for i := range colNames {
+		valueFormats = append(valueFormats, "$"+fmt.Sprintf("%d", i+1))
+	}
+	valString := "NOW(),NULL,NULL," + strings.Join(valueFormats, ",")
+	colString := "created_at,updated_at,deleted_at," + strings.Join(colNames, ",")
+	sqlString := "INSERT INTO " + tableName + "(" + colString + ") VALUES (" + valString + ")"
+	return sqlString
 }

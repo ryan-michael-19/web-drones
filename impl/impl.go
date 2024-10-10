@@ -7,9 +7,7 @@ import (
 	"log"
 	"math"
 	"reflect"
-	"strings"
 
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -21,18 +19,6 @@ type Server struct{}
 
 func NewServer() Server {
 	return Server{}
-}
-
-func BuildInsert(tableName string, colNames ...string) string {
-	// TODO: This feels very injectable...
-	valueFormats := []string{} // ["$1", "$2", etc..]
-	for i := range colNames {
-		valueFormats = append(valueFormats, "$"+fmt.Sprintf("%d", i+1))
-	}
-	valString := "NOW(),NULL,NULL," + strings.Join(valueFormats, ",")
-	colString := "created_at,updated_at,deleted_at," + strings.Join(colNames, ",")
-	sqlString := "INSERT INTO " + tableName + "(" + colString + ") VALUES (" + valString + ")"
-	return sqlString
 }
 
 func InRange(val1 float64, val2 float64) bool {
@@ -56,7 +42,7 @@ var botVelocity = 0.5
 var mineMax = 50.0
 var mineMin = -50.0
 
-// var sessionStore = sessions.NewCookieStore() // TODO: Does this need a key?
+const SESSION_VALUE = "username"
 
 func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
 	// TODO: Make sure mines don't respawn on top of each other
@@ -249,7 +235,7 @@ func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMi
 		)
 		x, y := NewRandomCoordinates(mineMin, mineMax)
 		batch.Queue(
-			BuildInsert("mines", "x", "y"), x, y,
+			schemas.BuildInsert("mines", "x", "y"), x, y,
 		)
 		err := db.SendBatch(global_ctx, batch).Close()
 		if err != nil {
@@ -270,7 +256,7 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 		)
 		uuid := uuid.NewString()
 		batch.Queue(
-			BuildInsert(
+			schemas.BuildInsert(
 				"bots", "identifier", "inventory_count", "name",
 			),
 			uuid, 0, request.Body.NewBotName,
@@ -318,14 +304,14 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 	uuid := uuid.NewString()
 	batch := &pgx.Batch{}
 	batch.Queue(
-		BuildInsert("bots", "Identifier", "Name", "Inventory_Count"),
+		schemas.BuildInsert("bots", "Identifier", "Name", "Inventory_Count"),
 		uuid, "Bob", 0,
 	)
 	batch.Queue(insertMoveActionQuery, uuid, 0, 0)
 	mineCount := 10
 	for range mineCount {
 		x, y := NewRandomCoordinates(mineMin, mineMax)
-		batch.Queue(BuildInsert("mines", "X", "Y"), x, y)
+		batch.Queue(schemas.BuildInsert("mines", "X", "Y"), x, y)
 	}
 	err = db.SendBatch(ctx, batch).Close()
 	if err != nil {
@@ -342,8 +328,13 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 }
 
 // (POST /login)
-func (Server) PostLogin(ctx context.Context, request api.PostLoginRequestObject) (api.PostLoginResponseObject, error) {
-	return api.PostLogin200TextResponse(response), nil
+func (Server) Login(ctx context.Context, request api.LoginRequestObject) (api.LoginResponseObject, error) {
+	return api.Login200TextResponse{
+		Body: "Login Successful",
+		Headers: api.Login200ResponseHeaders{
+			SetCookie: ctx.Value(api.CookieAuthScopes).(string),
+		},
+	}, nil
 }
 
 // (POST /bots/{botId}/move)
@@ -370,13 +361,17 @@ func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (
 }
 
 // (POST /newUser)
-func (Server) PostNewUser(ctx context.Context, request api.PostNewUserRequestObject) (api.PostNewUserResponseObject, error) {
+func (Server) NewUser(ctx context.Context, request api.NewUserRequestObject) (api.NewUserResponseObject, error) {
 	// TODO: NOT THIS YOUR SHIT WILL GET FUCKING WRECKED
-	BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE := uuid.New()
-	return api.PostNewUser200TextResponse{
-		Body: BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE.String(),
-		Headers: api.PostNewUser200ResponseHeaders{
-			SetCookie: BAD_UNSECURE_SESSION_ID_DO_NOT_FUCKING_USE.String(),
+	msg := "Login succesful"
+	return api.NewUser200JSONResponse{
+		Body: struct {
+			Message *string "json:\"message,omitempty\""
+		}{
+			Message: &msg,
+		},
+		Headers: api.NewUser200ResponseHeaders{
+			SetCookie: ctx.Value(SESSION_VALUE).(string),
 		},
 	}, nil
 }

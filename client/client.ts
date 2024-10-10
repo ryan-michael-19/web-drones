@@ -1,8 +1,38 @@
 import type {paths, components} from "./types";
-import createClient from "openapi-fetch";
+import createClient, {type Middleware} from "openapi-fetch";
 
-const CLIENT = createClient<paths>({baseUrl: "http://localhost:8080"});
+import {writeFileSync, readFileSync} from "fs";
 
+const authMiddleware: Middleware = {
+    async onRequest({ schemaPath, request }) {
+        if (schemaPath === "/login" || schemaPath === "/newUser") {
+            const username = "big chungus";
+            const password = "get rekt";
+            const authString = btoa(`${username}:${password}`)
+            request.headers.set("Authorization", `Basic ${authString}`);
+        } else {
+            const cookieData = readFileSync("./muh-cookie");
+            // for all other paths, set Authorization header as expected
+            request.headers.set("Cookie",`${cookieData}`);
+        }
+        return request;
+    },
+    async onResponse({ schemaPath, response, options }) {
+        // save cookie to file
+         if (schemaPath === "/login" || schemaPath === "/newUser") {
+            const cookie = response.headers.getSetCookie()[0];
+            console.log(cookie);
+            writeFileSync("./muh-cookie", cookie);
+        }
+        return undefined; // don't modify anything!!
+    },
+};
+
+const CLIENT = createClient<paths>({
+    baseUrl: "http://localhost:8080"
+});
+CLIENT.use(authMiddleware);
+// CLIENT.POST("/login");
 
 function distanceSquared (x: number, y: number): number {
     return (x**2) + (y**2);
@@ -13,6 +43,14 @@ function eps(a: number, b: number) {
 
 // nO tOp lEvEl aWaIt
 (async () => {
+    // await CLIENT.POST("/login", {
+        // params: {
+            // header: {
+// 
+            // }
+        // }
+    // })
+    await CLIENT.POST("/newUser");
     const {data, error} = await CLIENT.POST("/init");
     const bots = data.bots;
     await Promise.all(bots.map(async bot => {
@@ -45,8 +83,7 @@ function eps(a: number, b: number) {
             // TODO: unlearn my functional programming brainrot
             const waitTillBotReachesDestination = async (w: ()=>Promise<boolean>) => {
                 await new Promise(r => setTimeout(r, 1000));
-                const res = await w();
-                res ? null : await waitTillBotReachesDestination(w);
+                await w() ? null : await waitTillBotReachesDestination(w);
             }
             await waitTillBotReachesDestination(async () => {
                 const [x,y] = [closestMine.x, closestMine.y];

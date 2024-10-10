@@ -6,19 +6,10 @@ info:
 paths:
   /login:
     post:
+      operationId: Login
       description: Log in with username and password.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-      security: []
+      security:
+        - basicAuth: []
       responses:
         '200':
           description: Returns login cookie on success
@@ -26,11 +17,6 @@ paths:
             text/plain:
               schema:
                 type: string
-          headers:
-            Set-Cookie:
-              schema:
-                type: string
-                example: SESSIONID=asdf1234
         '401':
           description: Returns when login fails from bad username/password combo
           content:
@@ -39,34 +25,25 @@ paths:
                 type: string
   /newUser:
     post:
+      operationId: NewUser
       description: Creates new user with associated password
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                username:
-                  type: string
-                password:
-                  type: string
-      security: []
+      security:
+        - basicAuth: []
       responses:
         '200':
-          description: Returns login cookie on success
+          description: Creates new user and logs them in on success 
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-          headers:
-            Set-Cookie:
-              schema:
-                type: string
-                example: SESSIONID=asdf1234
+                type: object
+                properties:
+                  message:
+                    type: string
   /init:
     post:
       description: initialize the game with mining locations and a single bot (temporary)
+      security:
+        - cookieAuth: []
       responses:
         '200':
           description: returns starting bots and mines
@@ -204,6 +181,9 @@ paths:
 
 components:
   securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
     cookieAuth:
       type: apiKey
       in: cookie

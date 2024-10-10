@@ -10,18 +10,75 @@ import (
 	"os"
 
 	"github.com/gorilla/sessions"
+	"github.com/jackc/pgx/v5"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
-		sessionStore := sessions.NewCookieStore() // TODO: Does this need a key?
+		sessionStore := sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
 		m := []nethttp.StrictHTTPMiddlewareFunc{
 			func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 				return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
-					sessionStore.Get(r, "session")
+					session, err := sessionStore.Get(r, "SESSION")
+					if err != nil {
+						log.Fatal(err)
+					}
+					if operationID == "Login" {
+						// check against db
+						username, password, ok := r.BasicAuth()
+						if !ok {
+							// TODO: Return 401
+							log.Fatal("Basic auth issue")
+						}
+						records, err := schemas.OpenDB(ctx).Query(ctx,
+							"SELECT password FROM users WHERE username = $1",
+							username,
+						)
+						if err != nil {
+							log.Fatal(err)
+						}
+						// TODO: create struct when I'm being less lazy
+						hashedPassword, err := pgx.CollectExactlyOneRow(records, pgx.RowTo[string])
+						if err != nil {
+							log.Fatal(err)
+						}
+						err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+						if err != nil {
+							// TODO: Return 401
+							log.Fatal("Invalid Password")
+						}
+						session.Values["username"] = username
+					} else if operationID == "NewUser" {
+						// add new user to db
+						username, password, ok := r.BasicAuth()
+						if !ok {
+							// TODO: Return 401
+							log.Fatal("Basic auth issue")
+						}
+						hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+						if err != nil {
+							log.Fatal(err)
+						}
+						stmt := schemas.BuildInsert(
+							"users", "username", "password",
+						)
+						_, err = schemas.OpenDB(ctx).Exec(ctx, stmt, username, string(hashedPassword))
+						if err != nil {
+							// TODO: Return 401
+							log.Fatal(err)
+						}
+						session.Values["username"] = username
+					}
+					// Always set up cookies/sessions no matter what kind of request we've sent
+					err = session.Save(r, w)
+					if err != nil {
+						log.Fatal(err)
+					}
+					ctx = context.WithValue(ctx, impl.SESSION_VALUE, w.Header().Get("Set-Cookie"))
 					return f(ctx, w, r, request)
 				}
 			},
@@ -52,39 +109,4 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	// removing this and making a TS client that will be much easier to use
-	// } else if RUN_TYPE == "C" || RUN_TYPE == "CLIENT" {
-	// hc := http.Client{}
-	// client, err := api.NewClient("http://localhost:8080", api.WithHTTPClient(&hc))
-	// if err != nil {
-	// log.Fatal(err)
-	// }
-	// // learning the hard way why go devs advise against reflection !!
-	// t := reflect.TypeOf(client)
-	// clientMethods := make([]reflect.Method, t.NumMethod())
-	// for i := 0; i < t.NumMethod(); i++ {
-	// clientMethods[i] = t.Method(i)
-	// }
-	// fn := os.Args[2]
-	// args := make([]reflect.Value, len(os.Args[3:])+2)
-	// args[0] = reflect.ValueOf(client)
-	// args[1] = reflect.ValueOf(context.Background()) // TODO: This works apparently??
-	// for i := range os.Args[3:] {
-	// args[i+1] = reflect.ValueOf(os.Args[3+i])
-	// }
-	// for _, m := range clientMethods {
-	// if m.Name == fn {
-	// return_value := m.Func.Call(args)
-	// response := return_value[0].Elem()
-	// if err := return_value[1].Interface(); err != nil {
-	// log.Fatal(err)
-	// }
-	// contentLength := response.FieldByName("ContentLength").Int()
-	// resBody := make([]byte, contentLength)
-	// response.FieldByName("Body").Interface().(io.ReadCloser).Read(resBody)
-	// fmt.Println(string(resBody))
-	// }
-	// }
-	//
-	// }
 }

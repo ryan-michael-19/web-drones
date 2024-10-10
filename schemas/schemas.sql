@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS public.bot_actions; -- legacy
 DROP TABLE IF EXISTS public.bot_movement_ledger;
 DROP TABLE IF EXISTS public.bots;
 DROP TABLE IF EXISTS public.mines;
+DROP TABLE IF EXISTS public.users;
 CREATE TABLE public.bots (
     id bigserial PRIMARY KEY,
     created_at timestamp with time zone,
@@ -31,3 +32,12 @@ CREATE TABLE public.mines (
     x numeric NOT NULL,
     y numeric NOT NULL
 );
+
+CREATE TABLE public.users (
+    id bigserial PRIMARY KEY,
+    created_at timestamp with time zone,
+    updated_at timestamp with time zone,
+    deleted_at timestamp with time zone,
+    username text NOT NULL UNIQUE,
+    password text NOT NULL
+)
