@@ -5,6 +5,7 @@ import (
 	"colony-bots/impl"
 	"colony-bots/schemas"
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -25,43 +26,48 @@ func main() {
 				return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
 					session, err := sessionStore.Get(r, "SESSION")
 					if err != nil {
-						log.Fatal(err)
+						return "Authentication Error", err
 					}
-					if operationID == "Login" {
+					if operationID == "PostLogin" {
 						// check against db
 						username, password, ok := r.BasicAuth()
 						if !ok {
 							// TODO: Return 401
-							log.Fatal("Basic auth issue")
+							return "Authentication Error", errors.New("Basic Auth Header issue")
 						}
 						records, err := schemas.OpenDB(ctx).Query(ctx,
 							"SELECT password FROM users WHERE username = $1",
 							username,
 						)
 						if err != nil {
-							log.Fatal(err)
+							return "Authentication Error", err
 						}
 						// TODO: create struct when I'm being less lazy
 						hashedPassword, err := pgx.CollectExactlyOneRow(records, pgx.RowTo[string])
 						if err != nil {
-							log.Fatal(err)
+							return "Authentication Error", err
+						}
+						records.Close()
+						err = records.Err()
+						if err != nil {
+							return "Authentication error", err
 						}
 						err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 						if err != nil {
 							// TODO: Return 401
-							log.Fatal("Invalid Password")
+							return "Authentication Error", err
 						}
-						session.Values["username"] = username
-					} else if operationID == "NewUser" {
+						ctx = context.WithValue(ctx, impl.USERNAME_VALUE, username)
+					} else if operationID == "PostNewUser" {
 						// add new user to db
 						username, password, ok := r.BasicAuth()
 						if !ok {
 							// TODO: Return 401
-							log.Fatal("Basic auth issue")
+							return "Authentication Error", errors.New("Basic Auth Header issue")
 						}
 						hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 						if err != nil {
-							log.Fatal(err)
+							return "Authentication Error", err
 						}
 						stmt := schemas.BuildInsert(
 							"users", "username", "password",
@@ -69,14 +75,15 @@ func main() {
 						_, err = schemas.OpenDB(ctx).Exec(ctx, stmt, username, string(hashedPassword))
 						if err != nil {
 							// TODO: Return 401
-							log.Fatal(err)
+							return "Authentication Error", err
 						}
-						session.Values["username"] = username
+						ctx = context.WithValue(ctx, impl.USERNAME_VALUE, username)
 					}
+					w.Header().Add("Content-Type", "text/plain")
 					// Always set up cookies/sessions no matter what kind of request we've sent
 					err = session.Save(r, w)
 					if err != nil {
-						log.Fatal(err)
+						return "Authentication Error", err
 					}
 					ctx = context.WithValue(ctx, impl.SESSION_VALUE, w.Header().Get("Set-Cookie"))
 					return f(ctx, w, r, request)

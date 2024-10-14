@@ -4,8 +4,10 @@ import (
 	"colony-bots/api"
 	"colony-bots/schemas"
 	"context"
+	"fmt"
 	"log"
 	"math"
+	"os"
 	"reflect"
 
 	"math/rand"
@@ -42,7 +44,8 @@ var botVelocity = 0.5
 var mineMax = 50.0
 var mineMin = -50.0
 
-const SESSION_VALUE = "username"
+const SESSION_VALUE = "cookie"
+const USERNAME_VALUE = "username"
 
 func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
 	// TODO: Make sure mines don't respawn on top of each other
@@ -328,13 +331,8 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 }
 
 // (POST /login)
-func (Server) Login(ctx context.Context, request api.LoginRequestObject) (api.LoginResponseObject, error) {
-	return api.Login200TextResponse{
-		Body: "Login Successful",
-		Headers: api.Login200ResponseHeaders{
-			SetCookie: ctx.Value(api.CookieAuthScopes).(string),
-		},
-	}, nil
+func (Server) PostLogin(ctx context.Context, request api.PostLoginRequestObject) (api.PostLoginResponseObject, error) {
+	return api.PostLogin200TextResponse("Login Successful"), nil
 }
 
 // (POST /bots/{botId}/move)
@@ -361,17 +359,20 @@ func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (
 }
 
 // (POST /newUser)
-func (Server) NewUser(ctx context.Context, request api.NewUserRequestObject) (api.NewUserResponseObject, error) {
-	// TODO: NOT THIS YOUR SHIT WILL GET FUCKING WRECKED
-	msg := "Login succesful"
-	return api.NewUser200JSONResponse{
-		Body: struct {
-			Message *string "json:\"message,omitempty\""
-		}{
-			Message: &msg,
-		},
-		Headers: api.NewUser200ResponseHeaders{
-			SetCookie: ctx.Value(SESSION_VALUE).(string),
-		},
-	}, nil
+func (Server) PostNewUser(ctx context.Context, request api.PostNewUserRequestObject) (api.PostNewUserResponseObject, error) {
+	uname := ctx.Value(USERNAME_VALUE).(string)
+
+	// Use sanitized name where we can't use query params/prepared statements
+	unameSanitized := pgx.Identifier{uname}.Sanitize()
+	file, err := os.ReadFile("./schemas/schemas.sql")
+	if err != nil {
+		return nil, err
+	}
+	// TODO: Use templating and maps
+	interpolatedSql := fmt.Sprintf(string(file), unameSanitized, unameSanitized)
+	_, err = db.Exec(global_ctx, interpolatedSql)
+	if err != nil {
+		return nil, err
+	}
+	return api.PostNewUser200TextResponse("New User Created"), nil
 }

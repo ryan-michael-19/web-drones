@@ -6,7 +6,6 @@ info:
 paths:
   /login:
     post:
-      operationId: Login
       description: Log in with username and password.
       security:
         - basicAuth: []
@@ -25,7 +24,6 @@ paths:
                 type: string
   /newUser:
     post:
-      operationId: NewUser
       description: Creates new user with associated password
       security:
         - basicAuth: []
@@ -33,17 +31,18 @@ paths:
         '200':
           description: Creates new user and logs them in on success 
           content:
-            application/json:
+            text/plain:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
+                type: string
+        '401':
+          description: Returns when login fails from bad username/password combo
+          content:
+            text/plain:
+              schema:
+                type: string
   /init:
     post:
       description: initialize the game with mining locations and a single bot (temporary)
-      security:
-        - cookieAuth: []
       responses:
         '200':
           description: returns starting bots and mines

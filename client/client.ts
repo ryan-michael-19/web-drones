@@ -6,7 +6,7 @@ import {writeFileSync, readFileSync} from "fs";
 const authMiddleware: Middleware = {
     async onRequest({ schemaPath, request }) {
         if (schemaPath === "/login" || schemaPath === "/newUser") {
-            const username = "big chungus";
+            const username = "big_chungus";
             const password = "get rekt";
             const authString = btoa(`${username}:${password}`)
             request.headers.set("Authorization", `Basic ${authString}`);
@@ -21,15 +21,20 @@ const authMiddleware: Middleware = {
         // save cookie to file
          if (schemaPath === "/login" || schemaPath === "/newUser") {
             const cookie = response.headers.getSetCookie()[0];
-            console.log(cookie);
-            writeFileSync("./muh-cookie", cookie);
+            // cookie will be undefined if there is an HTTP error
+            if (cookie !== undefined) {
+                writeFileSync("./muh-cookie", cookie);
+            }
         }
         return undefined; // don't modify anything!!
     },
 };
 
 const CLIENT = createClient<paths>({
-    baseUrl: "http://localhost:8080"
+    baseUrl: "http://localhost:8080",
+    headers: {
+        "Content-Type" : "plain/text"
+    }
 });
 CLIENT.use(authMiddleware);
 // CLIENT.POST("/login");
@@ -43,14 +48,15 @@ function eps(a: number, b: number) {
 
 // nO tOp lEvEl aWaIt
 (async () => {
-    // await CLIENT.POST("/login", {
-        // params: {
-            // header: {
-// 
-            // }
-        // }
-    // })
-    await CLIENT.POST("/newUser");
+    await (async ()=>{
+        console.log("NEW USER");
+        const {data, error} = await CLIENT.POST("/newUser", {parseAs:"text"});
+        console.log(error);
+        if (error !== undefined) { // try to log in if there's a new user error
+            console.log("LOGGING IN");
+            const {data, error} = await CLIENT.POST("/login", {parseAs:"text"});
+        }
+    })();
     const {data, error} = await CLIENT.POST("/init");
     const bots = data.bots;
     await Promise.all(bots.map(async bot => {

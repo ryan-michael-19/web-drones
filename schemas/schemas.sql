@@ -1,9 +1,11 @@
-DROP TABLE IF EXISTS public.bot_actions; -- legacy
-DROP TABLE IF EXISTS public.bot_movement_ledger;
-DROP TABLE IF EXISTS public.bots;
-DROP TABLE IF EXISTS public.mines;
-DROP TABLE IF EXISTS public.users;
-CREATE TABLE public.bots (
+DROP SCHEMA public IF EXISTS CASCADE;  -- TODO: This will break anyone setting their username to "public"
+CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION gorm;
+SET search_path TO %s;
+DROP TABLE IF EXISTS bot_movement_ledger;
+DROP TABLE IF EXISTS bots;
+DROP TABLE IF EXISTS mines;
+DROP TABLE IF EXISTS users;
+CREATE TABLE bots (
     id bigserial PRIMARY KEY,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
@@ -13,7 +15,7 @@ CREATE TABLE public.bots (
     name text NOT NULL
 );
 
-CREATE TABLE public.bot_movement_ledger (
+CREATE TABLE bot_movement_ledger (
     id bigserial PRIMARY KEY,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
@@ -24,7 +26,7 @@ CREATE TABLE public.bot_movement_ledger (
     new_y numeric NOT NULL
 );
 
-CREATE TABLE public.mines (
+CREATE TABLE mines (
     id bigserial PRIMARY KEY,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
@@ -33,11 +35,12 @@ CREATE TABLE public.mines (
     y numeric NOT NULL
 );
 
-CREATE TABLE public.users (
+CREATE TABLE users (
     id bigserial PRIMARY KEY,
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
     username text NOT NULL UNIQUE,
     password text NOT NULL
-)
+);
+SET search_path TO public;
