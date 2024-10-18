@@ -140,7 +140,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
 				BotID:             1,
-				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 10, 0, 0, time.UTC),
 				NewX:              5,
 				NewY:              5,
 			},
@@ -149,7 +149,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
 				BotID:             1,
-				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 25, 0, time.UTC),
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 12, 0, 0, time.UTC),
 				NewX:              -5,
 				NewY:              -5,
 			},
@@ -157,14 +157,14 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 	expectedBots = []api.Bot{
 		{
-			Coordinates: api.Coordinates{X: -2.0710678118654746, Y: -2.0710678118654755},
+			Coordinates: api.Coordinates{X: -5, Y: -5},
 			Identifier:  "test 1",
 			Name:        "Bob",
-			Status:      api.MOVING,
+			Status:      api.IDLE,
 		},
 	}
 	testResult := impl.GetBotsFromLedger(
-		testLedger, time.Date(2024, 8, 26, 11, 8, 26, 0, time.UTC), 0.5,
+		testLedger, time.Date(2024, 8, 26, 11, 14, 0, 0, time.UTC), 0.5,
 	)
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
@@ -194,7 +194,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
 				BotID:             1,
-				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 10, 0, time.UTC),
 				NewX:              -5,
 				NewY:              -5,
 			},
@@ -202,14 +202,14 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 	expectedBots = []api.Bot{
 		{
-			Coordinates: api.Coordinates{X: 4.646446609406726, Y: 4.646446609406726},
+			Coordinates: api.Coordinates{X: -0.707106781186547, Y: -0.7071067811865477},
 			Identifier:  "test 1",
 			Name:        "Bob",
 			Status:      api.MOVING,
 		},
 	}
 	testResult = impl.GetBotsFromLedger(
-		testLedger, time.Date(2024, 8, 26, 11, 10, 5, 1, time.UTC), 0.05,
+		testLedger, time.Date(2024, 8, 26, 11, 8, 17, 0, time.UTC), 0.5,
 	)
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
@@ -282,13 +282,13 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Coordinates: api.Coordinates{X: -5, Y: -5},
 			Identifier:  "test 1",
 			Name:        "Bob",
-			Status:      api.MOVING,
+			Status:      api.IDLE,
 		},
 		{
 			Coordinates: api.Coordinates{X: 100, Y: 100},
 			Identifier:  "test 2",
 			Name:        "Rob",
-			Status:      api.MOVING,
+			Status:      api.IDLE,
 		},
 	}
 	testResult = impl.GetBotsFromLedger(
