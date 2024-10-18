@@ -51,10 +51,11 @@ function eps(a: number, b: number) {
     await (async ()=>{
         console.log("NEW USER");
         const {data, error} = await CLIENT.POST("/newUser", {parseAs:"text"});
-        console.log(error);
         if (error !== undefined) { // try to log in if there's a new user error
+            console.log("Error making new user", error.toString())
             console.log("LOGGING IN");
-            const {data, error} = await CLIENT.POST("/login", {parseAs:"text"});
+            // const {data, error} = await CLIENT.POST("/login", {parseAs:"text"});
+            await CLIENT.POST("/login", {parseAs:"text"});
         }
     })();
     const {data, error} = await CLIENT.POST("/init");

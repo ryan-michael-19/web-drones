@@ -1,26 +1,30 @@
 package schemas
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func OpenDB(ctx context.Context) *pgxpool.Pool {
-	conn, err := pgxpool.New(context.Background(), "postgres://gorm:gorm@localhost:5432/gorm")
+func OpenDB() *sql.DB {
+	// conn, err := pgxpool.New(context.Background(), "postgres://user:password@localhost:5432/webdrones")
+	db, err := sql.Open(
+		"pgx", "postgres://user:password@localhost:5432/webdrones",
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	// make sure the database is up and running
-	_, err = conn.Exec(ctx, ";")
+	err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return conn
+	return db
 }
 
 // TODO: Get rid of these??
@@ -60,8 +64,8 @@ func BuildInsert(tableName string, colNames ...string) string {
 	for i := range colNames {
 		valueFormats = append(valueFormats, "$"+fmt.Sprintf("%d", i+1))
 	}
-	valString := "NOW(),NULL,NULL," + strings.Join(valueFormats, ",")
-	colString := "created_at,updated_at,deleted_at," + strings.Join(colNames, ",")
+	valString := "NOW(),NOW()," + strings.Join(valueFormats, ",")
+	colString := "created_at,updated_at," + strings.Join(colNames, ",")
 	sqlString := "INSERT INTO " + tableName + "(" + colString + ") VALUES (" + valString + ")"
 	return sqlString
 }

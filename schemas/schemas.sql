@@ -1,46 +1,42 @@
-DROP SCHEMA public IF EXISTS CASCADE;  -- TODO: This will break anyone setting their username to "public"
-CREATE SCHEMA IF NOT EXISTS %s AUTHORIZATION gorm;
-SET search_path TO %s;
 DROP TABLE IF EXISTS bot_movement_ledger;
 DROP TABLE IF EXISTS bots;
 DROP TABLE IF EXISTS mines;
 DROP TABLE IF EXISTS users;
+
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL
+);
 CREATE TABLE bots (
-    id bigserial PRIMARY KEY,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
-    deleted_at timestamp with time zone,
-    identifier text UNIQUE NOT NULL,
-    inventory_count smallint NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    user_id BIGINT REFERENCES users(id) NOT NULL, 
+    identifier TEXT UNIQUE NOT NULL,
+    inventory_count SMALLINT NOT NULL,
     name text NOT NULL
 );
 
 CREATE TABLE bot_movement_ledger (
     id bigserial PRIMARY KEY,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
-    deleted_at timestamp with time zone,
-    bot_id bigint references bots(id) NOT NULL,
-    time_action_started timestamp with time zone NOT NULL,
-    new_x numeric NOT NULL,
-    new_y numeric NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    bot_id BIGINT REFERENCES bots(id) NOT NULL,
+    user_id BIGINT REFERENCES users(id) NOT NULL, 
+    time_action_started TIMESTAMP WITH TIME ZONE NOT NULL,
+    new_x NUMERIC NOT NULL,
+    new_y NUMERIC NOT NULL
 );
 
 CREATE TABLE mines (
-    id bigserial PRIMARY KEY,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
-    deleted_at timestamp with time zone,
-    x numeric NOT NULL,
-    y numeric NOT NULL
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE,
+    updated_at TIMESTAMP WITH TIME ZONE,
+    user_id BIGINT REFERENCES users(id) NOT NULL, 
+    x NUMERIC NOT NULL,
+    y NUMERIC NOT NULL
 );
 
-CREATE TABLE users (
-    id bigserial PRIMARY KEY,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
-    deleted_at timestamp with time zone,
-    username text NOT NULL UNIQUE,
-    password text NOT NULL
-);
-SET search_path TO public;

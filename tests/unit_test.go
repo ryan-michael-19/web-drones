@@ -3,7 +3,7 @@ package tests
 import (
 	"colony-bots/api"
 	"colony-bots/impl"
-	"colony-bots/schemas"
+	"colony-bots/webdrones/public/model"
 	"math"
 	"reflect"
 	"testing"
@@ -84,7 +84,7 @@ func TestGetBotLocation(t *testing.T) {
 
 func TestGetBotsFromLedger(t *testing.T) {
 	// TODO: Validate results with something better than spot checks and prayers
-	bob := schemas.Bots{
+	bob := model.Bots{
 		ID:         1,
 		Identifier: "test 1",
 		Name:       "Bob",
@@ -93,33 +93,33 @@ func TestGetBotsFromLedger(t *testing.T) {
 	testLedger := []impl.BotsWithActions{
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:             0,
-				New_Y:             0,
+				NewX:              0,
+				NewY:              0,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
-				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 14, 0, time.UTC), // just before reaching destination
-				New_X:             5,
-				New_Y:             5,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 13, 0, time.UTC),
+				NewX:              5,
+				NewY:              5,
 			},
 		},
 	}
 	expectedBots := []api.Bot{
 		{
-			Coordinates: api.Coordinates{X: 4.949747468305833, Y: 4.949747468305832},
+			Coordinates: api.Coordinates{X: 4.949747468305833, Y: 4.949747468305833},
 			Identifier:  "test 1",
 			Name:        "Bob",
 			Status:      api.MOVING,
 		},
 	}
 	// testResult := impl.GetBotsFromLedger(
-	// 	testLedger, time.Date(2024, 8, 26, 11, 10, 5, 0, time.UTC),
+	// 	testLedger, time.Date(2024, 8, 26, 11, 8, 14, 0, time.UTC), 0.5, // just before reaching destination
 	// )
 	// if !reflect.DeepEqual(testResult, expectedBots) { // TODO: Use epsilon for floats (i am lazy)
 	// 	t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
@@ -129,29 +129,29 @@ func TestGetBotsFromLedger(t *testing.T) {
 	testLedger = []impl.BotsWithActions{
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:             0,
-				New_Y:             0,
+				NewX:              0,
+				NewY:              0,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:             5,
-				New_Y:             5,
+				NewX:              5,
+				NewY:              5,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 25, 0, time.UTC),
-				New_X:             -5,
-				New_Y:             -5,
+				NewX:              -5,
+				NewY:              -5,
 			},
 		},
 	}
@@ -163,40 +163,40 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	// testResult = impl.GetBotsFromLedger(
-	// 	testLedger, time.Date(2024, 8, 26, 11, 10, 10, 0, time.UTC),
-	// )
-	// if !reflect.DeepEqual(testResult, expectedBots) {
-	// 	t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
-	// }
+	testResult := impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 8, 26, 0, time.UTC), 0.5,
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
 
 	// Test where a subsequent action row interrupts the movement of its predecessor
 	testLedger = []impl.BotsWithActions{
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:             0,
-				New_Y:             0,
+				NewX:              0,
+				NewY:              0,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:             5,
-				New_Y:             5,
+				NewX:              5,
+				NewY:              5,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
-				New_X:             -5,
-				New_Y:             -5,
+				NewX:              -5,
+				NewY:              -5,
 			},
 		},
 	}
@@ -208,15 +208,15 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	// testResult = impl.GetBotsFromLedger(
-	// 	testLedger, time.Date(2024, 8, 26, 11, 10, 5, 1, time.UTC),
-	// )
-	// if !reflect.DeepEqual(testResult, expectedBots) {
-	// 	t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
-	// }
+	testResult = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 10, 5, 1, time.UTC), 0.05,
+	)
+	if !reflect.DeepEqual(testResult, expectedBots) {
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
 
 	// Test multiple bots
-	rob := schemas.Bots{
+	rob := model.Bots{
 		ID:         2,
 		Identifier: "test 2",
 		Name:       "Rob",
@@ -224,56 +224,56 @@ func TestGetBotsFromLedger(t *testing.T) {
 	testLedger = []impl.BotsWithActions{
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
-				New_X:             0,
-				New_Y:             0,
+				NewX:              0,
+				NewY:              0,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 5, 0, time.UTC),
-				New_X:             5,
-				New_Y:             5,
+				NewX:              5,
+				NewY:              5,
 			},
 		},
 		{
 			Bots: bob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           1,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 10, 0, time.UTC),
-				New_X:             -5,
-				New_Y:             -5,
+				NewX:              -5,
+				NewY:              -5,
 			},
 		},
 		{
 			Bots: rob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           2,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             2,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 6, 0, time.UTC),
-				New_X:             3,
-				New_Y:             3,
+				NewX:              3,
+				NewY:              3,
 			},
 		},
 		{
 			Bots: rob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           2,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             2,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 7, 0, time.UTC),
-				New_X:             -5,
-				New_Y:             -5,
+				NewX:              -5,
+				NewY:              -5,
 			},
 		},
 		{
 			Bots: rob,
-			BotActions: schemas.BotActions{
-				Bot_Key:           2,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             2,
 				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 8, 0, time.UTC),
-				New_X:             100,
-				New_Y:             100,
+				NewX:              100,
+				NewY:              100,
 			},
 		},
 	}
@@ -291,8 +291,8 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	testResult := impl.GetBotsFromLedger(
-		testLedger, time.Date(2024, 8, 26, 11, 59, 5, 0, time.UTC),
+	testResult = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 59, 5, 0, time.UTC), 0.05,
 	)
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)

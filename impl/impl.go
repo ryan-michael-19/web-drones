@@ -7,14 +7,16 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"reflect"
 
+	"colony-bots/webdrones/public/model"
+	. "colony-bots/webdrones/public/table"
 	"math/rand"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 type Server struct{}
@@ -27,9 +29,14 @@ func InRange(val1 float64, val2 float64) bool {
 	return math.Abs(val1-val2) < 1e-2
 }
 
+// type BotsWithActions struct {
+// schemas.Bots
+// schemas.BotActions
+// }
+
 type BotsWithActions struct {
-	schemas.Bots
-	schemas.BotActions
+	model.BotMovementLedger
+	model.Bots
 }
 
 func BuildLogger() *log.Logger {
@@ -38,11 +45,15 @@ func BuildLogger() *log.Logger {
 }
 
 var global_ctx = context.Background()
-var db = schemas.OpenDB(global_ctx)
+var db = schemas.OpenDB()
 var logger = BuildLogger()
 var botVelocity = 0.5
 var mineMax = 50.0
 var mineMin = -50.0
+
+func GenerateUserIDSubquery(username string) postgres.SelectStatement {
+	return SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username)))
+}
 
 const SESSION_VALUE = "cookie"
 const USERNAME_VALUE = "username"
@@ -53,40 +64,65 @@ func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (flo
 		mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
 }
 
-func GetSingleBotFromDB(botId string) api.Bot {
-	rows, err := db.Query(global_ctx, botsWithActionsAndFilterQuery, botId)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	defer rows.Close()
-	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
-	if err != nil {
-		logger.Fatal(err)
-	}
-	return GetBotsFromLedger(ledger, time.Now())[0]
+func GetSingleBotFromDB(botId string, username string) api.Bot {
+	stmt := SELECT(
+		Bots.Identifier, Bots.Name, Bots.InventoryCount,
+		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
+	).FROM(
+		Bots.LEFT_JOIN(
+			BotMovementLedger, BotMovementLedger.ID.EQ(Bots.ID),
+		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)).AND(Bots.Identifier.EQ(String(botId))),
+	).ORDER_BY(
+		Bots.Identifier.ASC(),
+		BotMovementLedger.TimeActionStarted.ASC(),
+	)
+	var ledger []BotsWithActions
+	stmt.Query(db, &ledger)
+	return GetBotsFromLedger(ledger, time.Now(), botVelocity)[0]
 }
 
-func GetBotsFromDB() []api.Bot {
-	rows, err := db.Query(global_ctx, botsWithActionsQuery)
+func GetBotsFromDB(username string) []api.Bot {
+	stmt := SELECT(
+		Bots.Identifier, Bots.Name, Bots.InventoryCount,
+		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
+	).FROM(
+		Bots.LEFT_JOIN(
+			BotMovementLedger, BotMovementLedger.ID.EQ(Bots.ID),
+		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)),
+	).ORDER_BY(
+		Bots.Identifier.ASC(),
+		BotMovementLedger.TimeActionStarted.ASC(),
+	)
+	// TODO: FIX THIS SHIT
+	var ledger []BotsWithActions
+	err := stmt.Query(db, &ledger)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	defer rows.Close()
-	ledger, err := pgx.CollectRows(rows, pgx.RowToStructByName[BotsWithActions])
-	if err != nil {
-		logger.Fatal(err)
-	}
-	return GetBotsFromLedger(ledger, time.Now())
+	return GetBotsFromLedger(ledger, time.Now(), botVelocity)
 }
 
-func GetMinesFromDB() []api.Coordinates {
-	rows, err := db.Query(global_ctx, "SELECT mines.x, mines.y FROM mines")
+func GetMinesFromDB(username string) []api.Coordinates {
+	// rows, err := db.Query(global_ctx, "SELECT mines.x, mines.y FROM mines")
+	stmt := SELECT(Mines.X, Mines.Y).FROM(
+		Mines.INNER_JOIN(Users, Users.ID.EQ(Mines.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)),
+	)
+	fmt.Println(stmt.DebugSql())
+	var dbResults []model.Mines
+	err := stmt.Query(db, &dbResults)
 	if err != nil {
 		log.Fatal(err)
 	}
-	mines, err := pgx.CollectRows(rows, pgx.RowToStructByName[api.Coordinates])
-	if err != nil {
-		log.Fatal(err)
+	mines := make([]api.Coordinates, len(dbResults))
+	for i, res := range dbResults {
+		mines[i].X = res.X
+		mines[i].Y = res.Y
 	}
 	return mines
 }
@@ -128,9 +164,9 @@ func GetBotLocation(
 	return currentLocation, nil
 }
 
-func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []api.Bot {
+func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botVelocity float64) []api.Bot {
 	var bots []api.Bot
-	currentBotCoords := api.Coordinates{X: ledger[0].New_X, Y: ledger[0].New_Y}
+	currentBotCoords := api.Coordinates{X: ledger[0].NewX, Y: ledger[0].NewY}
 	for i := range ledger {
 		// check if the next record exists and refers to the same bot
 		if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
@@ -138,7 +174,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			var err error
 			currentBotCoords, err = GetBotLocation(
 				currentBotCoords,
-				api.Coordinates{X: ledger[i+1].New_X, Y: ledger[i+1].New_Y},
+				api.Coordinates{X: ledger[i+1].NewX, Y: ledger[i+1].NewY},
 				ledger[i].TimeActionStarted,
 				ledger[i+1].TimeActionStarted,
 				botVelocity,
@@ -152,7 +188,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			var err error
 			currentBotCoords, err = GetBotLocation(
 				currentBotCoords,
-				api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y},
+				api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY},
 				ledger[i].TimeActionStarted,
 				currentDatetime,
 				botVelocity,
@@ -162,7 +198,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 			}
 			var botStatus api.BotStatus
 			// Set bot to idle if it is at the coordinates of its last move action
-			if reflect.DeepEqual(currentBotCoords, api.Coordinates{X: ledger[i].New_X, Y: ledger[i].New_Y}) {
+			if reflect.DeepEqual(currentBotCoords, api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY}) {
 				botStatus = api.IDLE
 			} else {
 				botStatus = api.MOVING
@@ -173,7 +209,7 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 				Identifier:  ledger[i].Identifier,
 				Name:        ledger[i].Name,
 				Status:      botStatus,
-				Inventory:   ledger[i].InventoryCount,
+				Inventory:   int(ledger[i].InventoryCount),
 			}
 			bots = append(bots, bot)
 		}
@@ -181,41 +217,35 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time) []ap
 	return bots
 }
 
-var botsWithActionsQuery = `
-SELECT bots.Identifier, bots.Name, bots.inventory_count,
- bot_movement_ledger.new_x, bot_movement_ledger.new_y, bot_movement_ledger.time_action_started
- FROM bots
- LEFT JOIN bot_movement_ledger ON bots.ID = bot_movement_ledger.bot_id
- ORDER BY bots.Identifier ASC, bot_movement_ledger.Time_Action_Started ASC
-`
-
-var botsWithActionsAndFilterQuery = "" +
-	"SELECT bots.Identifier, bots.Name, bots.inventory_count," +
-	" bot_movement_ledger.new_x, bot_movement_ledger.new_y, bot_movement_ledger.time_action_started" +
-	" FROM bots" +
-	" LEFT JOIN bot_movement_ledger ON bots.ID = bot_movement_ledger.bot_id" +
-	" WHERE bots.Identifier = $1" +
-	" ORDER BY bot_movement_ledger.Time_Action_Started ASC"
-
-var insertMoveActionQuery = "" +
-	"INSERT INTO bot_movement_ledger (created_at,updated_at,deleted_at,bot_id,time_action_started,new_x,new_y)" +
-	" VALUES (NOW(), NULL, NULL, (SELECT id FROM bots WHERE identifier = $1), NOW(), $2, $3)"
+func GenerateMoveActionQuery(identifier string, username string, x float64, y float64) postgres.InsertStatement {
+	return BotMovementLedger.INSERT(
+		BotMovementLedger.CreatedAt, BotMovementLedger.UpdatedAt,
+		BotMovementLedger.BotID, BotMovementLedger.UserID,
+		BotMovementLedger.TimeActionStarted, BotMovementLedger.NewX, BotMovementLedger.NewY,
+	).VALUES(
+		NOW(), NOW(),
+		SELECT(Bots.ID).FROM(Bots).WHERE(Bots.Identifier.EQ(String(identifier))),
+		GenerateUserIDSubquery(username),
+		NOW(), x, y,
+	)
+}
 
 // (GET /bots)
 func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
-	return api.GetBots200JSONResponse(GetBotsFromDB()), nil
+	return api.GetBots200JSONResponse(GetBotsFromDB(ctx.Value(USERNAME_VALUE).(string))), nil
 }
 
 // (GET /bots/{botId})
 func (Server) GetBotsBotId(ctx context.Context, request api.GetBotsBotIdRequestObject) (api.GetBotsBotIdResponseObject, error) {
-	return api.GetBotsBotId200JSONResponse(GetSingleBotFromDB(request.BotId)), nil
+	return api.GetBotsBotId200JSONResponse(GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))), nil
 }
 
 // (POST /bots/{botId}/mine)
 func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMineRequestObject) (api.PostBotsBotIdMineResponseObject, error) {
-	bot := GetSingleBotFromDB(request.BotId)
+	bot := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
+	username := ctx.Value(USERNAME_VALUE).(string)
 	var currentMine *api.Coordinates = nil
-	for _, mine := range GetMinesFromDB() {
+	for _, mine := range GetMinesFromDB(username) {
 		if InRange(bot.Coordinates.X, mine.X) && InRange(bot.Coordinates.Y, mine.Y) {
 			currentMine = &mine
 		}
@@ -225,53 +255,72 @@ func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMi
 	} else {
 		// Add scrap metal to bot's inventory.
 		// Then delete the mine and create a new one.
-		batch := &pgx.Batch{}
-		// TODO: Throw error if nothing updates
-		batch.Queue(
-			"UPDATE bots SET inventory_count = inventory_count + 1, updated_at = NOW() WHERE identifier = $1",
-			bot.Identifier,
-		)
-		// TODO: Throw error if more than one mine is removed
-		batch.Queue(
-			"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4",
-			currentMine.X, 1e-9, currentMine.Y, 1e-9,
-		)
-		x, y := NewRandomCoordinates(mineMin, mineMax)
-		batch.Queue(
-			schemas.BuildInsert("mines", "x", "y"), x, y,
-		)
-		err := db.SendBatch(global_ctx, batch).Close()
+		tx, err := db.Begin()
+		defer tx.Rollback()
 		if err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
 		}
-		return api.PostBotsBotIdMine200JSONResponse(GetSingleBotFromDB(request.BotId)), nil
+		// TODO: Convert to jet RawStatement (can't find support for x=x+1 in jet updates)
+		_, err = db.Exec(
+			// TODO: Use join instead of subquery
+			"UPDATE bots SET inventory_count = inventory_count + 1, updated_at = NOW() WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
+			bot.Identifier, username,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: Throw error if more than one mine is removed
+		// TODO: Convert to jet and remove subquery
+		_, err = db.Exec(
+			"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4 AND user_id = (SELECT id FROM users WHERE username = $5)",
+			currentMine.X, 1e-9, currentMine.Y, 1e-9, username,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: Handle case where new coordinates spawn on top of new mine
+		x, y := NewRandomCoordinates(mineMin, mineMax)
+		stmt := Mines.INSERT(Mines.X, Mines.Y, Mines.UserID).
+			VALUES(x, y, GenerateUserIDSubquery(username))
+		_, err = stmt.Exec(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+		tx.Commit()
+		return api.PostBotsBotIdMine200JSONResponse(GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))), nil
 	}
 }
 
 // (POST /bots/{botId}/newBot)
 func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotIdNewBotRequestObject) (api.PostBotsBotIdNewBotResponseObject, error) {
-	bot := GetSingleBotFromDB(request.BotId)
+	bot := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
 	if bot.Inventory >= 3 {
-		batch := &pgx.Batch{}
-		batch.Queue(
-			"UPDATE bots SET inventory_count = inventory_count - 3, updated_at = NOW() WHERE identifier = $1",
-			bot.Identifier,
+		username := ctx.Value(USERNAME_VALUE).(string)
+		tx, err := db.Begin()
+		defer tx.Rollback()
+		db.Exec(
+			// TODO: Convert to jet and remove subquery
+			"UPDATE bots SET inventory_count = inventory_count - 3, updated_at = NOW() WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
+			bot.Identifier, username,
 		)
 		uuid := uuid.NewString()
-		batch.Queue(
-			schemas.BuildInsert(
-				"bots", "identifier", "inventory_count", "name",
-			),
-			uuid, 0, request.Body.NewBotName,
+		stmt := Bots.INSERT(Bots.Identifier, Bots.InventoryCount, Bots.Name, Bots.UserID).VALUES(
+			uuid, 0, request.Body.NewBotName, GenerateUserIDSubquery(username),
 		)
-		batch.Queue(
-			insertMoveActionQuery,
-			// TODO: Make new bot coordinates some random interval away from the making bot
-			uuid, bot.Coordinates.X, bot.Coordinates.Y,
-		)
-		err := db.SendBatch(global_ctx, batch).Close()
+		_, err = stmt.Exec(db)
 		if err != nil {
-			logger.Fatal(err)
+			log.Fatal(err)
+		}
+		stmt = GenerateMoveActionQuery(
+			uuid, ctx.Value(USERNAME_VALUE).(string), bot.Coordinates.X, bot.Coordinates.Y,
+		)
+		_, err = stmt.Exec(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = tx.Commit()
+		if err != nil {
+			log.Fatal(err)
 		}
 		// TODO: Get bot from database??
 		return api.PostBotsBotIdNewBot200JSONResponse(
@@ -291,38 +340,83 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 
 // (POST /init)
 func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (api.PostInitResponseObject, error) {
-	// TODO: Use transactions
-	// tx, err := db.Begin(ctx)
-	// if err != nil {
-	// logger.Fatal(err)
-	// }
-	_, err := db.Exec(ctx,
-		"DELETE FROM bot_movement_ledger WHERE 1=1 ;"+
-			" DELETE FROM bots WHERE 1=1 ;"+
-			" DELETE FROM mines WHERE 1=1",
-	)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	uuid := uuid.NewString()
-	batch := &pgx.Batch{}
-	batch.Queue(
-		schemas.BuildInsert("bots", "Identifier", "Name", "Inventory_Count"),
-		uuid, "Bob", 0,
-	)
-	batch.Queue(insertMoveActionQuery, uuid, 0, 0)
-	mineCount := 10
-	for range mineCount {
-		x, y := NewRandomCoordinates(mineMin, mineMax)
-		batch.Queue(schemas.BuildInsert("mines", "X", "Y"), x, y)
-	}
-	err = db.SendBatch(ctx, batch).Close()
+	uname := ctx.Value(USERNAME_VALUE).(string)
+	// TODO: Convert batch to transaction
+	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
-	// tx.Rollback(ctx)
-	bots := GetBotsFromDB()
-	mines := GetMinesFromDB()
+	defer tx.Rollback()
+	{
+		stmt := BotMovementLedger.DELETE().USING(Users).WHERE(
+			BotMovementLedger.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(uname)),
+			),
+		)
+		_, err := stmt.Exec(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	{
+		stmt := Bots.DELETE().USING(Users).WHERE(
+			Bots.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(uname)),
+			),
+		)
+		_, err := stmt.Exec(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	{
+		stmt := Mines.DELETE().USING(Users).WHERE(
+			Mines.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(uname)),
+			),
+		)
+		_, err := stmt.Exec(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	uuid := uuid.NewString()
+	stmt := Bots.INSERT(
+		Bots.CreatedAt, Bots.UpdatedAt, Bots.Identifier, Bots.Name, Bots.InventoryCount, Bots.UserID,
+	).VALUES(
+		NOW(), NOW(), uuid, "Bob", 0, GenerateUserIDSubquery(uname),
+	)
+	_, err = stmt.Exec(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	moveStatement := GenerateMoveActionQuery(
+		uuid, uname, 0, 0,
+	)
+	_, err = moveStatement.Exec(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	stmt = Mines.INSERT(
+		Mines.CreatedAt, Mines.UpdatedAt, Mines.UserID, Mines.X, Mines.Y,
+	)
+	mineCount := 10
+	for range mineCount {
+		x, y := NewRandomCoordinates(mineMin, mineMax)
+		stmt = stmt.VALUES(
+			NOW(), NOW(), SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(uname))), x, y,
+		)
+	}
+	_, err = stmt.Exec(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+	}
+	bots := GetBotsFromDB(uname)
+	mines := GetMinesFromDB(uname)
 	resp := api.PostInit200JSONResponse{
 		Bots:  &bots,
 		Mines: &mines,
@@ -337,42 +431,35 @@ func (Server) PostLogin(ctx context.Context, request api.PostLoginRequestObject)
 
 // (POST /bots/{botId}/move)
 func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMoveRequestObject) (api.PostBotsBotIdMoveResponseObject, error) {
-	status, err := db.Exec(
-		global_ctx, insertMoveActionQuery,
-		request.BotId, request.Body.X, request.Body.Y)
+	username := ctx.Value(USERNAME_VALUE).(string)
+	stmt := GenerateMoveActionQuery(
+		request.BotId, ctx.Value(USERNAME_VALUE).(string), request.Body.X, request.Body.Y,
+	)
+	status, err := stmt.Exec(db)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if status.RowsAffected() != 1 {
+	rowCount, err := status.RowsAffected()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if rowCount != 1 {
 		log.Fatalf(
 			"Expected 1 row to be affected but %d were affected",
-			status.RowsAffected())
+			rowCount)
 	}
-	resp := GetSingleBotFromDB(request.BotId)
+	resp := GetSingleBotFromDB(request.BotId, username)
 	return api.PostBotsBotIdMove200JSONResponse(resp), nil
 }
 
 // (GET /mines)
 func (Server) GetMines(ctx context.Context, request api.GetMinesRequestObject) (api.GetMinesResponseObject, error) {
-	mines := GetMinesFromDB()
+	username := ctx.Value(USERNAME_VALUE).(string)
+	mines := GetMinesFromDB(username)
 	return api.GetMines200JSONResponse(mines), nil
 }
 
 // (POST /newUser)
 func (Server) PostNewUser(ctx context.Context, request api.PostNewUserRequestObject) (api.PostNewUserResponseObject, error) {
-	uname := ctx.Value(USERNAME_VALUE).(string)
-
-	// Use sanitized name where we can't use query params/prepared statements
-	unameSanitized := pgx.Identifier{uname}.Sanitize()
-	file, err := os.ReadFile("./schemas/schemas.sql")
-	if err != nil {
-		return nil, err
-	}
-	// TODO: Use templating and maps
-	interpolatedSql := fmt.Sprintf(string(file), unameSanitized, unameSanitized)
-	_, err = db.Exec(global_ctx, interpolatedSql)
-	if err != nil {
-		return nil, err
-	}
 	return api.PostNewUser200TextResponse("New User Created"), nil
 }
