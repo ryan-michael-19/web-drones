@@ -69,8 +69,8 @@ func GetSingleBotFromDB(botId string, username string) api.Bot {
 		Bots.Identifier, Bots.Name, Bots.InventoryCount,
 		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
 	).FROM(
-		Bots.LEFT_JOIN(
-			BotMovementLedger, BotMovementLedger.ID.EQ(Bots.ID),
+		Bots.INNER_JOIN(
+			BotMovementLedger, BotMovementLedger.BotID.EQ(Bots.ID),
 		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
 	).WHERE(
 		Users.Username.EQ(String(username)).AND(Bots.Identifier.EQ(String(botId))),
@@ -88,8 +88,8 @@ func GetBotsFromDB(username string) []api.Bot {
 		Bots.Identifier, Bots.Name, Bots.InventoryCount,
 		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
 	).FROM(
-		Bots.LEFT_JOIN(
-			BotMovementLedger, BotMovementLedger.ID.EQ(Bots.ID),
+		Bots.INNER_JOIN(
+			BotMovementLedger, BotMovementLedger.BotID.EQ(Bots.ID),
 		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
 	).WHERE(
 		Users.Username.EQ(String(username)),
@@ -97,9 +97,9 @@ func GetBotsFromDB(username string) []api.Bot {
 		Bots.Identifier.ASC(),
 		BotMovementLedger.TimeActionStarted.ASC(),
 	)
-	// TODO: FIX THIS SHIT
 	var ledger []BotsWithActions
 	err := stmt.Query(db, &ledger)
+	fmt.Println(stmt.DebugSql())
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -167,6 +167,19 @@ func GetBotLocation(
 func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botVelocity float64) []api.Bot {
 	var bots []api.Bot
 	var currentBotCoords api.Coordinates
+	// TODO: Write unit test to handle this case
+	if len(ledger) == 1 {
+		bots = append(bots, api.Bot{
+			Coordinates: api.Coordinates{
+				X: ledger[0].NewX, Y: ledger[0].NewY,
+			},
+			Identifier: ledger[0].Identifier,
+			Name:       ledger[0].Name,
+			Status:     api.IDLE,
+			Inventory:  int(ledger[0].InventoryCount),
+		})
+		return bots
+	}
 	for i := range ledger {
 		if i == 0 {
 			currentBotCoords = api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY}

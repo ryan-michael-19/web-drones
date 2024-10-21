@@ -60,6 +60,8 @@ function eps(a: number, b: number) {
     })();
     const {data, error} = await CLIENT.POST("/init");
     const bots = data.bots;
+    console.log(data);
+    console.log(error);
     await Promise.all(bots.map(async bot => {
         const params = {path: {botId:bot.identifier}}
         // Mine for three scrap metal

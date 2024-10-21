@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"colony-bots/webdrones/public/model"
 	. "colony-bots/webdrones/public/table"
 
 	. "github.com/go-jet/jet/v2/postgres"
@@ -38,17 +39,13 @@ func main() {
 							// TODO: Return 401
 							return "Authentication Error", errors.New("Basic Auth Header issue")
 						}
-						// records, err := schemas.OpenDB(ctx).Query(ctx,
-						// "SELECT password FROM users WHERE username = $1",
-						// username,
-						// )
 						stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
-						var hashedPassword string
+						var hashedPassword model.Users
 						err := stmt.Query(schemas.OpenDB(), &hashedPassword)
 						if err != nil {
 							return "Authentication Error", err
 						}
-						err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+						err = bcrypt.CompareHashAndPassword([]byte(hashedPassword.Password), []byte(password))
 						if err != nil {
 							// TODO: Return 401
 							return "Authentication Error", err
