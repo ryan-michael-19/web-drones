@@ -37,7 +37,6 @@ const CLIENT = createClient<paths>({
     }
 });
 CLIENT.use(authMiddleware);
-// CLIENT.POST("/login");
 
 function distanceSquared (x: number, y: number): number {
     return (x**2) + (y**2);
