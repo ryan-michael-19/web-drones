@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -24,10 +25,19 @@ import (
 // TODO: Use error wrapping???
 type AuthError struct {
 	originalError error
+	newError      error
+}
+
+func (e *AuthError) BothErrors() string {
+	return fmt.Sprintf("Authentication error: %s %s", e.originalError.Error(), e.newError.Error())
 }
 
 func (e *AuthError) Error() string {
-	return fmt.Sprintf("AUTHENTICATION: %s", e.originalError.Error())
+	if e.newError == nil {
+		return "Unspecified authentication error"
+	} else {
+		return fmt.Sprintf("Authentication error: %s", e.newError.Error())
+	}
 }
 
 var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
@@ -56,9 +66,6 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 				} else {
 					return "Authentication Error", &AuthError{originalError: err}
 				}
-			}
-			if err != nil {
-				return "Authentication Error", &AuthError{originalError: err}
 			}
 			w.Header().Add("Content-Type", "text/plain")
 			session.Values["username"] = username
@@ -113,6 +120,7 @@ func main() {
 		// i := api.NewStrictHandler(server, m)
 		i := api.NewStrictHandlerWithOptions(server, m, api.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+				slog.Error("caught client error", "error", err.Error(), "code", http.StatusUnauthorized)
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			},
 			ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
@@ -122,8 +130,10 @@ func main() {
 				// so we don't have to rewrite the auth middleware.
 				var authErr *AuthError
 				if errors.As(err, &authErr) {
+					slog.Error("caught client error", "error", err.(*AuthError).BothErrors(), "code", http.StatusUnauthorized)
 					http.Error(w, err.Error(), http.StatusUnauthorized)
 				} else {
+					slog.Error("caught server error", "error", err.Error(), "code", http.StatusInternalServerError)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
 			},
