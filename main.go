@@ -20,74 +20,76 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
+func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+		session, err := sessionStore.Get(r, "SESSION")
+		if err != nil {
+			return "Authentication Error", err
+		}
+		if operationID == "PostLogin" {
+			// check against db
+			username, password, ok := r.BasicAuth()
+			if !ok {
+				// TODO: Return 401
+				return "Authentication Error", errors.New("Basic Auth Header issue")
+			}
+			stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
+			var hashedPassword model.Users
+			err := stmt.Query(schemas.OpenDB(), &hashedPassword)
+			if err != nil {
+				return "Authentication Error", err
+			}
+			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword.Password), []byte(password))
+			if err != nil {
+				// TODO: Return 401
+				return "Authentication Error", err
+			}
+			session.Values["username"] = username
+		} else if operationID == "PostNewUser" {
+			// add new user to db
+			username, password, ok := r.BasicAuth()
+			if !ok {
+				// TODO: Return 401
+				return "Authentication Error", errors.New("Basic Auth Header issue")
+			}
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			if err != nil {
+				return "Authentication Error", err
+			}
+			stmt := Users.INSERT(
+				Users.CreatedAt, Users.UpdatedAt, Users.Username, Users.Password,
+			).VALUES(
+				NOW(), NOW(), String(username), String(string(hashedPassword)),
+			)
+			_, err = stmt.Exec(schemas.OpenDB())
+			if err != nil {
+				// TODO: Return 401
+				return "Authentication Error", err
+			}
+			session.Values["username"] = username
+		}
+		w.Header().Add("Content-Type", "text/plain")
+		// Always set up cookies/sessions no matter what kind of request we've sent
+		err = session.Save(r, w)
+		if err != nil {
+			return "Authentication Error", err
+		}
+		ctx = context.WithValue(ctx, impl.USERNAME_VALUE, session.Values["username"])
+		return f(ctx, w, r, request)
+	}
+
+}
+
 func main() {
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
-		sessionStore := sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
-		m := []nethttp.StrictHTTPMiddlewareFunc{
-			func(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
-				return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
-					session, err := sessionStore.Get(r, "SESSION")
-					if err != nil {
-						return "Authentication Error", err
-					}
-					if operationID == "PostLogin" {
-						// check against db
-						username, password, ok := r.BasicAuth()
-						if !ok {
-							// TODO: Return 401
-							return "Authentication Error", errors.New("Basic Auth Header issue")
-						}
-						stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
-						var hashedPassword model.Users
-						err := stmt.Query(schemas.OpenDB(), &hashedPassword)
-						if err != nil {
-							return "Authentication Error", err
-						}
-						err = bcrypt.CompareHashAndPassword([]byte(hashedPassword.Password), []byte(password))
-						if err != nil {
-							// TODO: Return 401
-							return "Authentication Error", err
-						}
-						session.Values["username"] = username
-					} else if operationID == "PostNewUser" {
-						// add new user to db
-						username, password, ok := r.BasicAuth()
-						if !ok {
-							// TODO: Return 401
-							return "Authentication Error", errors.New("Basic Auth Header issue")
-						}
-						hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-						if err != nil {
-							return "Authentication Error", err
-						}
-						stmt := Users.INSERT(
-							Users.CreatedAt, Users.UpdatedAt, Users.Username, Users.Password,
-						).VALUES(
-							NOW(), NOW(), String(username), String(string(hashedPassword)),
-						)
-						_, err = stmt.Exec(schemas.OpenDB())
-						if err != nil {
-							// TODO: Return 401
-							return "Authentication Error", err
-						}
-						session.Values["username"] = username
-					}
-					w.Header().Add("Content-Type", "text/plain")
-					// Always set up cookies/sessions no matter what kind of request we've sent
-					err = session.Save(r, w)
-					if err != nil {
-						return "Authentication Error", err
-					}
-					ctx = context.WithValue(ctx, impl.USERNAME_VALUE, session.Values["username"])
-					return f(ctx, w, r, request)
-				}
-			},
-		}
+		m := []nethttp.StrictHTTPMiddlewareFunc{AuthMiddleWare}
 		server := impl.NewServer()
 		// create a type that satisfies the `api.StrictServerInterface`, which contains an implementation of every operation from the generated code
-		i := api.NewStrictHandler(server, m)
+		i := api.NewStrictHandlerWithOptions(server, m)
+		// NewStrictHandlerWithOptions
 
 		r := http.NewServeMux()
 

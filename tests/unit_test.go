@@ -163,9 +163,12 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult := impl.GetBotsFromLedger(
+	testResult, err := impl.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 14, 0, 0, time.UTC), 0.5,
 	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
 	}
@@ -208,9 +211,12 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	testResult = impl.GetBotsFromLedger(
+	testResult, err = impl.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 17, 0, time.UTC), 0.5,
 	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
 	}
@@ -291,9 +297,12 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult = impl.GetBotsFromLedger(
+	testResult, err = impl.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 59, 5, 0, time.UTC), 0.05,
 	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
 	if !reflect.DeepEqual(testResult, expectedBots) {
 		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
 	}
