@@ -1,13 +1,14 @@
 package tests
 
 import (
-	"colony-bots/api"
-	"colony-bots/impl"
-	"colony-bots/webdrones/public/model"
 	"math"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ryan-michael-19/web-drones/api"
+	"github.com/ryan-michael-19/web-drones/impl"
+	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
 )
 
 func almostEquals(val1 float64, val2 float64) bool {

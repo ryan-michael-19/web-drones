@@ -1,9 +1,6 @@
 package main
 
 import (
-	"colony-bots/api"
-	"colony-bots/impl"
-	"colony-bots/schemas"
 	"context"
 	"errors"
 	"fmt"
@@ -12,8 +9,12 @@ import (
 	"net/http"
 	"os"
 
-	"colony-bots/webdrones/public/model"
-	. "colony-bots/webdrones/public/table"
+	"github.com/ryan-michael-19/web-drones/api"
+	"github.com/ryan-michael-19/web-drones/impl"
+	"github.com/ryan-michael-19/web-drones/schemas"
+
+	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
+	. "github.com/ryan-michael-19/web-drones/webdrones/public/table"
 
 	. "github.com/go-jet/jet/v2/postgres"
 
