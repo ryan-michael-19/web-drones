@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"math"
 	"os"
@@ -533,11 +532,13 @@ func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMo
 	)
 	status, err := stmt.Exec(db)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return nil, err
 	}
 	rowCount, err := status.RowsAffected()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		return nil, err
 	}
 	if rowCount != 1 {
 		errString := fmt.Sprintf("Expected 1 row to be affected but %d were affected", rowCount)
