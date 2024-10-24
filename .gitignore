@@ -1,0 +1,4 @@
+**/**.log
+go.work*
+pkg/
+client/node_modules
