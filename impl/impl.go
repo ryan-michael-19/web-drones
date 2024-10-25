@@ -135,7 +135,6 @@ func GetMinesFromDB(username string) ([]api.Coordinates, error) {
 	).WHERE(
 		Users.Username.EQ(String(username)),
 	)
-	fmt.Println(stmt.DebugSql())
 	var dbResults []model.Mines
 	err := stmt.Query(db, &dbResults)
 	if err != nil {
