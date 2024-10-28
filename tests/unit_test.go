@@ -90,8 +90,88 @@ func TestGetBotsFromLedger(t *testing.T) {
 		Identifier: "test 1",
 		Name:       "Bob",
 	}
-	// Test a happy path of two action rows where bot reaches destination
+	// Test ledger with single initialized bot
 	testLedger := []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				NewX:              58,
+				NewY:              56,
+			},
+		},
+	}
+	expectedBots := []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: 58, Y: 56},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.IDLE,
+		},
+	}
+	testResult, err := impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
+	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
+	if !reflect.DeepEqual(testResult, expectedBots) { // TODO: Use epsilon for floats (i am lazy)
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// Test initialization of several bots
+	rob := model.Bots{
+		ID:         2,
+		Identifier: "test 2",
+		Name:       "Rob",
+	}
+	testLedger = []impl.BotsWithActions{
+		{
+			Bots: bob,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             1,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				NewX:              58,
+				NewY:              56,
+			},
+		},
+		{
+			Bots: rob,
+			BotMovementLedger: model.BotMovementLedger{
+				BotID:             2,
+				TimeActionStarted: time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
+				NewX:              48,
+				NewY:              36,
+			},
+		},
+	}
+	expectedBots = []api.Bot{
+		{
+			Coordinates: api.Coordinates{X: 58, Y: 56},
+			Identifier:  "test 1",
+			Name:        "Bob",
+			Status:      api.IDLE,
+		},
+		{
+			Coordinates: api.Coordinates{X: 48, Y: 36},
+			Identifier:  "test 2",
+			Name:        "Rob",
+			Status:      api.IDLE,
+		},
+	}
+	testResult, err = impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
+	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
+	if !reflect.DeepEqual(testResult, expectedBots) { // TODO: Use epsilon for floats (i am lazy)
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
+
+	// Test a happy path of two action rows where bot reaches destination
+	testLedger = []impl.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -111,7 +191,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			},
 		},
 	}
-	expectedBots := []api.Bot{
+	expectedBots = []api.Bot{
 		{
 			Coordinates: api.Coordinates{X: 4.949747468305833, Y: 4.949747468305832},
 			Identifier:  "test 1",
@@ -119,7 +199,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	testResult, err := impl.GetBotsFromLedger(
+	testResult, err = impl.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
 	)
 	if err != nil {
@@ -226,11 +306,6 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 
 	// Test multiple bots
-	rob := model.Bots{
-		ID:         2,
-		Identifier: "test 2",
-		Name:       "Rob",
-	}
 	testLedger = []impl.BotsWithActions{
 		{
 			Bots: bob,

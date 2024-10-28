@@ -188,10 +188,8 @@ func GetBotLocation(
 func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botVelocity float64) ([]api.Bot, error) {
 	var bots []api.Bot
 	var currentBotCoords api.Coordinates
+	currentBotCoords = api.Coordinates{X: ledger[0].NewX, Y: ledger[0].NewY}
 	for i := range ledger {
-		if i == 0 {
-			currentBotCoords = api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY}
-		}
 		if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
 			// continue calculating velocity
 			var err error
@@ -235,6 +233,10 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botV
 				Inventory:   int(ledger[i].InventoryCount),
 			}
 			bots = append(bots, bot)
+			// Initialize coordinates for the next bot (if it exists)
+			if i < len(ledger)-1 {
+				currentBotCoords = api.Coordinates{X: ledger[i+1].NewX, Y: ledger[i+1].NewY}
+			}
 		}
 	}
 	return bots, nil
