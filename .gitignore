@@ -2,3 +2,4 @@
 go.work*
 pkg/
 client/node_modules
+*.exe
