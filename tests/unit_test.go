@@ -113,18 +113,21 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 	expectedBots := []api.Bot{
 		{
-			Coordinates: api.Coordinates{X: 4.949747468305833, Y: 4.949747468305833},
+			Coordinates: api.Coordinates{X: 4.949747468305833, Y: 4.949747468305832},
 			Identifier:  "test 1",
 			Name:        "Bob",
 			Status:      api.MOVING,
 		},
 	}
-	// testResult := impl.GetBotsFromLedger(
-	// 	testLedger, time.Date(2024, 8, 26, 11, 8, 14, 0, time.UTC), 0.5, // just before reaching destination
-	// )
-	// if !reflect.DeepEqual(testResult, expectedBots) { // TODO: Use epsilon for floats (i am lazy)
-	// 	t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
-	// }
+	testResult, err := impl.GetBotsFromLedger(
+		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
+	)
+	if err != nil {
+		t.Fatalf("Error: %s", err.Error())
+	}
+	if !reflect.DeepEqual(testResult, expectedBots) { // TODO: Use epsilon for floats (i am lazy)
+		t.Fatalf("Expected %#v but got %#v", expectedBots, testResult)
+	}
 
 	// Test three action rows.
 	testLedger = []impl.BotsWithActions{
@@ -164,7 +167,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult, err := impl.GetBotsFromLedger(
+	testResult, err = impl.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 14, 0, 0, time.UTC), 0.5,
 	)
 	if err != nil {
