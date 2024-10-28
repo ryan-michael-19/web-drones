@@ -188,24 +188,11 @@ func GetBotLocation(
 func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botVelocity float64) ([]api.Bot, error) {
 	var bots []api.Bot
 	var currentBotCoords api.Coordinates
-	// TODO: Write unit test to handle this case
-	if len(ledger) == 1 {
-		bots = append(bots, api.Bot{
-			Coordinates: api.Coordinates{
-				X: ledger[0].NewX, Y: ledger[0].NewY,
-			},
-			Identifier: ledger[0].Identifier,
-			Name:       ledger[0].Name,
-			Status:     api.IDLE,
-			Inventory:  int(ledger[0].InventoryCount),
-		})
-		return bots, nil
-	}
 	for i := range ledger {
 		if i == 0 {
 			currentBotCoords = api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY}
-			// check if the next record exists and refers to the same bot
-		} else if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
+		}
+		if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
 			// continue calculating velocity
 			var err error
 			currentBotCoords, err = GetBotLocation(
@@ -418,7 +405,6 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 // (POST /init)
 func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (api.PostInitResponseObject, error) {
 	username := ctx.Value(USERNAME_VALUE).(string)
-	// TODO: Convert batch to transaction
 	tx, err := db.Begin()
 	if err != nil {
 		slog.Error(err.Error())
@@ -462,26 +448,51 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 			return nil, err
 		}
 	}
-	uuid := uuid.NewString()
-	stmt := Bots.INSERT(
-		Bots.CreatedAt, Bots.UpdatedAt, Bots.Identifier, Bots.Name, Bots.InventoryCount, Bots.UserID,
-	).VALUES(
-		NOW(), NOW(), uuid, "Bob", 0, GenerateUserIDSubquery(username),
-	)
-	_, err = stmt.Exec(db)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, err
+	newBots := []struct {
+		botName string
+		coords  api.Coordinates
+	}{
+		{
+			botName: "Bob",
+			coords: api.Coordinates{
+				X: 0, Y: 0,
+			},
+		},
+		{
+			botName: "Sam",
+			coords: api.Coordinates{
+				X: 5, Y: 5,
+			},
+		},
+		{
+			botName: "Gretchen",
+			coords: api.Coordinates{
+				X: -5, Y: -5,
+			},
+		},
 	}
-	moveStatement := GenerateMoveActionQuery(
-		uuid, username, 0, 0,
-	)
-	_, err = moveStatement.Exec(db)
-	if err != nil {
-		slog.Error(err.Error())
-		return nil, err
+	for _, newBot := range newBots {
+		uuid := uuid.NewString()
+		stmt := Bots.INSERT(
+			Bots.CreatedAt, Bots.UpdatedAt, Bots.Identifier, Bots.Name, Bots.InventoryCount, Bots.UserID,
+		).VALUES(
+			NOW(), NOW(), uuid, newBot.botName, 0, GenerateUserIDSubquery(username),
+		)
+		_, err = stmt.Exec(db)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+		moveStatement := GenerateMoveActionQuery(
+			uuid, username, newBot.coords.X, newBot.coords.Y,
+		)
+		_, err = moveStatement.Exec(db)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
 	}
-	stmt = Mines.INSERT(
+	stmt := Mines.INSERT(
 		Mines.CreatedAt, Mines.UpdatedAt, Mines.UserID, Mines.X, Mines.Y,
 	)
 	mineCount := 10
