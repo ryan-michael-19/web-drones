@@ -65,8 +65,8 @@ type ServerInterface interface {
 	// (GET /bots/{botId})
 	GetBotsBotId(w http.ResponseWriter, r *http.Request, botId string)
 
-	// (POST /bots/{botId}/mine)
-	PostBotsBotIdMine(w http.ResponseWriter, r *http.Request, botId string)
+	// (POST /bots/{botId}/extract)
+	PostBotsBotIdExtract(w http.ResponseWriter, r *http.Request, botId string)
 
 	// (POST /bots/{botId}/move)
 	PostBotsBotIdMove(w http.ResponseWriter, r *http.Request, botId string)
@@ -147,8 +147,8 @@ func (siw *ServerInterfaceWrapper) GetBotsBotId(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// PostBotsBotIdMine operation middleware
-func (siw *ServerInterfaceWrapper) PostBotsBotIdMine(w http.ResponseWriter, r *http.Request) {
+// PostBotsBotIdExtract operation middleware
+func (siw *ServerInterfaceWrapper) PostBotsBotIdExtract(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -168,7 +168,7 @@ func (siw *ServerInterfaceWrapper) PostBotsBotIdMine(w http.ResponseWriter, r *h
 	r = r.WithContext(ctx)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostBotsBotIdMine(w, r, botId)
+		siw.Handler.PostBotsBotIdExtract(w, r, botId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -442,7 +442,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 
 	m.HandleFunc("GET "+options.BaseURL+"/bots", wrapper.GetBots)
 	m.HandleFunc("GET "+options.BaseURL+"/bots/{botId}", wrapper.GetBotsBotId)
-	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/mine", wrapper.PostBotsBotIdMine)
+	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/extract", wrapper.PostBotsBotIdExtract)
 	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/move", wrapper.PostBotsBotIdMove)
 	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/newBot", wrapper.PostBotsBotIdNewBot)
 	m.HandleFunc("POST "+options.BaseURL+"/init", wrapper.PostInit)
@@ -486,26 +486,26 @@ func (response GetBotsBotId200JSONResponse) VisitGetBotsBotIdResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostBotsBotIdMineRequestObject struct {
+type PostBotsBotIdExtractRequestObject struct {
 	BotId string `json:"botId"`
 }
 
-type PostBotsBotIdMineResponseObject interface {
-	VisitPostBotsBotIdMineResponse(w http.ResponseWriter) error
+type PostBotsBotIdExtractResponseObject interface {
+	VisitPostBotsBotIdExtractResponse(w http.ResponseWriter) error
 }
 
-type PostBotsBotIdMine200JSONResponse Bot
+type PostBotsBotIdExtract200JSONResponse Bot
 
-func (response PostBotsBotIdMine200JSONResponse) VisitPostBotsBotIdMineResponse(w http.ResponseWriter) error {
+func (response PostBotsBotIdExtract200JSONResponse) VisitPostBotsBotIdExtractResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostBotsBotIdMine422TextResponse string
+type PostBotsBotIdExtract422TextResponse string
 
-func (response PostBotsBotIdMine422TextResponse) VisitPostBotsBotIdMineResponse(w http.ResponseWriter) error {
+func (response PostBotsBotIdExtract422TextResponse) VisitPostBotsBotIdExtractResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(422)
 
@@ -657,8 +657,8 @@ type StrictServerInterface interface {
 	// (GET /bots/{botId})
 	GetBotsBotId(ctx context.Context, request GetBotsBotIdRequestObject) (GetBotsBotIdResponseObject, error)
 
-	// (POST /bots/{botId}/mine)
-	PostBotsBotIdMine(ctx context.Context, request PostBotsBotIdMineRequestObject) (PostBotsBotIdMineResponseObject, error)
+	// (POST /bots/{botId}/extract)
+	PostBotsBotIdExtract(ctx context.Context, request PostBotsBotIdExtractRequestObject) (PostBotsBotIdExtractResponseObject, error)
 
 	// (POST /bots/{botId}/move)
 	PostBotsBotIdMove(ctx context.Context, request PostBotsBotIdMoveRequestObject) (PostBotsBotIdMoveResponseObject, error)
@@ -758,25 +758,25 @@ func (sh *strictHandler) GetBotsBotId(w http.ResponseWriter, r *http.Request, bo
 	}
 }
 
-// PostBotsBotIdMine operation middleware
-func (sh *strictHandler) PostBotsBotIdMine(w http.ResponseWriter, r *http.Request, botId string) {
-	var request PostBotsBotIdMineRequestObject
+// PostBotsBotIdExtract operation middleware
+func (sh *strictHandler) PostBotsBotIdExtract(w http.ResponseWriter, r *http.Request, botId string) {
+	var request PostBotsBotIdExtractRequestObject
 
 	request.BotId = botId
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.PostBotsBotIdMine(ctx, request.(PostBotsBotIdMineRequestObject))
+		return sh.ssi.PostBotsBotIdExtract(ctx, request.(PostBotsBotIdExtractRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostBotsBotIdMine")
+		handler = middleware(handler, "PostBotsBotIdExtract")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(PostBotsBotIdMineResponseObject); ok {
-		if err := validResponse.VisitPostBotsBotIdMineResponse(w); err != nil {
+	} else if validResponse, ok := response.(PostBotsBotIdExtractResponseObject); ok {
+		if err := validResponse.VisitPostBotsBotIdExtractResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

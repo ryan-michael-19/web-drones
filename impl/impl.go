@@ -272,8 +272,8 @@ func (Server) GetBotsBotId(ctx context.Context, request api.GetBotsBotIdRequestO
 	return api.GetBotsBotId200JSONResponse(res), nil
 }
 
-// (POST /bots/{botId}/mine)
-func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMineRequestObject) (api.PostBotsBotIdMineResponseObject, error) {
+// (POST /bots/{botId}/extract)
+func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotIdExtractRequestObject) (api.PostBotsBotIdExtractResponseObject, error) {
 	bot, err := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
 	if err != nil {
 		// TODO: Convert to 500
@@ -295,7 +295,7 @@ func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMi
 	}
 	if currentMine == nil {
 		// TODO: Return error?
-		return api.PostBotsBotIdMine422TextResponse("Bot is not currently near a mine"), nil
+		return api.PostBotsBotIdExtract422TextResponse("Bot is not currently near a mine"), nil
 	} else {
 		// Add scrap metal to bot's inventory.
 		// Then delete the mine and create a new one.
@@ -340,7 +340,7 @@ func (Server) PostBotsBotIdMine(ctx context.Context, request api.PostBotsBotIdMi
 			slog.Error(err.Error())
 			return nil, err
 		}
-		return api.PostBotsBotIdMine200JSONResponse(res), nil
+		return api.PostBotsBotIdExtract200JSONResponse(res), nil
 	}
 }
 

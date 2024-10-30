@@ -109,7 +109,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Bot'
-  /bots/{botId}/mine:
+  /bots/{botId}/extract:
     post:
       description: Mine scrap metal from bot's current location. Only works when bot is near a mine.
       parameters:
