@@ -59,6 +59,7 @@ func (e *AuthError) Error() string {
 var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
 func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+		// TODO: Hook session information into postgres backend
 		session, err := sessionStore.Get(r, "SESSION")
 		if err != nil {
 			return "Authentication Error", &AuthError{originalError: err}
