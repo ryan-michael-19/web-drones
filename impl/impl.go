@@ -35,11 +35,6 @@ func InRange(val1 float64, val2 float64) bool {
 	return math.Abs(val1-val2) < 1e-2
 }
 
-// type BotsWithActions struct {
-// schemas.Bots
-// schemas.BotActions
-// }
-
 type BotsWithActions struct {
 	model.BotMovementLedger
 	model.Bots
