@@ -355,6 +355,10 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 	if bot.Inventory >= 3 {
 		username := ctx.Value(USERNAME_VALUE).(string)
 		tx, err := db.Begin()
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
 		defer tx.Rollback()
 		db.Exec(
 			// TODO: Convert to jet and remove subquery
