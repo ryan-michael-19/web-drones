@@ -68,7 +68,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			// check against db
 			username, password, ok := r.BasicAuth()
 			if !ok {
-				return "Authentication Error", &AuthError{newError: errors.New("Invalid basic auth header")}
+				return "Authentication Error", &AuthError{newError: errors.New("invalid basic auth header")}
 			}
 			stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
 			var hashedPassword model.Users
@@ -79,7 +79,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword.Password), []byte(password))
 			if err != nil {
 				if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-					return "Authentication Error", &AuthError{originalError: errors.New("Username and password mismatch")}
+					return "Authentication Error", &AuthError{originalError: errors.New("username and password mismatch")}
 				} else {
 					return "Authentication Error", &AuthError{originalError: err}
 				}
@@ -94,7 +94,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 		} else if operationID == "PostNewUser" {
 			username, password, ok := r.BasicAuth()
 			if !ok {
-				return "Authentication Error", &AuthError{newError: errors.New("Invalid basic auth header")}
+				return "Authentication Error", &AuthError{newError: errors.New("invalid basic auth header")}
 			}
 			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 			if err != nil {
@@ -108,7 +108,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			)
 			_, err = stmt.Exec(schemas.OpenDB())
 			if err != nil {
-				return "Authentication Error", &AuthError{originalError: err, newError: errors.New("Username already exists")}
+				return "Authentication Error", &AuthError{originalError: err, newError: errors.New("username already exists")}
 			}
 			w.Header().Add("Content-Type", "text/plain")
 			session.Values["username"] = username
@@ -119,7 +119,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			}
 		} else if session.IsNew {
 			// We should have an existing session if we are not logging in or creating a new user
-			return "Authentication Error", &AuthError{newError: errors.New("Must use cookie to access this resource")}
+			return "Authentication Error", &AuthError{newError: errors.New("must use cookie to access this resource")}
 		}
 		ctx = context.WithValue(ctx, impl.USERNAME_VALUE, session.Values["username"])
 		return f(ctx, w, r, request)
@@ -161,7 +161,7 @@ func main() {
 
 		s := &http.Server{
 			Handler: h,
-			Addr:    "0.0.0.0:8080",
+			Addr:    "127.0.0.1:8080",
 		}
 		// And we serve HTTP until the world ends.
 		log.Fatal(s.ListenAndServe())

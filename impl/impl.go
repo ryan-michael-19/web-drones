@@ -52,9 +52,8 @@ func BuildLogger() *slog.Logger {
 	return logger
 }
 
-var global_ctx = context.Background()
 var db = schemas.OpenDB()
-var logger = BuildLogger()
+var _ = BuildLogger()
 var botVelocity = 0.5
 var mineMax = 50.0
 var mineMin = -50.0
@@ -63,6 +62,7 @@ func GenerateUserIDSubquery(username string) postgres.SelectStatement {
 	return SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username)))
 }
 
+// TODO: Use a key type here
 const SESSION_VALUE = "cookie"
 const USERNAME_VALUE = "username"
 
@@ -162,7 +162,7 @@ func GetBotLocation(
 	movementVector := api.Coordinates{
 		X: destinationCoordinates.X - initialCoordinates.X, Y: destinationCoordinates.Y - initialCoordinates.Y,
 	}
-	// TODO: Remove sqrt
+	// : Remove sqrt
 	movementVectorLen := math.Sqrt(math.Pow(movementVector.X, 2) + math.Pow(movementVector.Y, 2))
 	timeToReachDestination := movementVectorLen / botVelocity
 	timeDelta := currentTime.Sub(movementStartTime).Seconds()
@@ -253,6 +253,7 @@ func GenerateMoveActionQuery(identifier string, username string, x float64, y fl
 // (GET /bots)
 func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
 	res, err := GetBotsFromDB(ctx.Value(USERNAME_VALUE).(string))
+	err = errors.New("FAKE ERROR")
 	if err != nil {
 		// TODO: Convert to 500
 		slog.Error(err.Error())
