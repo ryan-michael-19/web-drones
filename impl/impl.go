@@ -317,18 +317,44 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 		}
 		// TODO: Throw error if more than one mine is removed
 		// TODO: Convert to jet and remove subquery
-		_, err = db.Exec(
-			"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4 AND user_id = (SELECT id FROM users WHERE username = $5)",
-			currentMine.X, 1e-9, currentMine.Y, 1e-9, username,
-		)
-		if err != nil {
-			slog.Error(err.Error())
-			return nil, err
-		}
+		// _, err = db.Exec(
+		// 	"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4 AND user_id = (SELECT id FROM users WHERE username = $5)",
+		// 	currentMine.X, 1e-9, currentMine.Y, 1e-9, username,
+		// )
+		// if err != nil {
+		// 	slog.Error(err.Error())
+		// 	return nil, err
+		// }
 		// TODO: Handle case where new coordinates spawn on top of new mine
-		x, y := NewRandomCoordinates(mineMin, mineMax)
-		stmt := Mines.INSERT(Mines.X, Mines.Y, Mines.UserID).
-			VALUES(x, y, GenerateUserIDSubquery(username))
+		var x float64
+		var y float64
+		newMineSet := false
+		for range 100 {
+			x, y = NewRandomCoordinates(mineMin, mineMax)
+			mineOverlaps := false
+			for _, mine := range mines {
+				if InRange(x, mine.X) || InRange(y, mine.Y) {
+					mineOverlaps = true
+					break
+				}
+			}
+			if mineOverlaps {
+				mineOverlaps = false
+				continue
+			} else {
+				newMineSet = true
+				break
+			}
+		}
+		if !newMineSet {
+			return nil, errors.New("could not get new mine coordinates")
+		}
+		stmt :=  Mines.UPDATE().SET(
+			Mines.X.SET(Float(x)),
+			Mines.Y.SET(Float(y)))
+		).WHERE(Link.Name.EQ())
+		// stmt := Mines.INSERT(Mines.X, Mines.Y, Mines.UserID).
+		// 	VALUES(x, y, GenerateUserIDSubquery(username))
 		_, err = stmt.Exec(db)
 		if err != nil {
 			slog.Error(err.Error())
