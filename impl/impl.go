@@ -253,7 +253,6 @@ func GenerateMoveActionQuery(identifier string, username string, x float64, y fl
 // (GET /bots)
 func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
 	res, err := GetBotsFromDB(ctx.Value(USERNAME_VALUE).(string))
-	err = errors.New("FAKE ERROR")
 	if err != nil {
 		// TODO: Convert to 500
 		slog.Error(err.Error())

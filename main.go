@@ -93,6 +93,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 				return "Authentication Error", &AuthError{originalError: err}
 			}
 		} else if operationID == "PostNewUser" {
+			// TODO: INIT GAME AFTER NEW USER IS CREATED
 			username, password, ok := r.BasicAuth()
 			if !ok {
 				return "Authentication Error", &AuthError{newError: errors.New("invalid basic auth header")}
