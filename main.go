@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
 	"github.com/ryan-michael-19/web-drones/schemas"
@@ -108,7 +109,11 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			)
 			_, err = stmt.Exec(schemas.OpenDB())
 			if err != nil {
-				return "Authentication Error", &AuthError{originalError: err, newError: errors.New("username already exists")}
+				if err.(*pgconn.PgError).Code == "23505" {
+					return "Authentication Error", &AuthError{originalError: err, newError: errors.New("username already exists")}
+				} else {
+					return "Authentication Error", &AuthError{originalError: err}
+				}
 			}
 			w.Header().Add("Content-Type", "text/plain")
 			session.Values["username"] = username
