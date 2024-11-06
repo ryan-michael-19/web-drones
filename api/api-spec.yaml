@@ -59,6 +59,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Coordinates"
+                required:
+                  - bots
+                  - mines
   /bots:
     get:
       description: Get an array of bots and what they're doing

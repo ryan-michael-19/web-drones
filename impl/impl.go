@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/schemas"
@@ -41,13 +42,23 @@ type BotsWithActions struct {
 }
 
 func BuildLogger() *slog.Logger {
+	replace := func(_ []string, a slog.Attr) slog.Attr {
+		if a.Key == "source" {
+			src := a.Value.Any().(*slog.Source)
+			return slog.String("source", src.File+":"+strconv.Itoa(src.Line))
+		}
+		return a
+	}
 	logName := path.Join("./", fmt.Sprintf("%s.log", time.Now().Format("2006-01-02-15-04-05")))
 	logFile, err := os.OpenFile(logName, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		panic(err)
 	}
 	w := io.MultiWriter(logFile, os.Stdout)
-	logger := slog.New(slog.NewJSONHandler(w, nil))
+	logger := slog.New(slog.NewJSONHandler(w, &slog.HandlerOptions{
+		AddSource:   true,
+		ReplaceAttr: replace,
+	}))
 	slog.SetDefault(logger)
 	return logger
 }
@@ -162,7 +173,7 @@ func GetBotLocation(
 	movementVector := api.Coordinates{
 		X: destinationCoordinates.X - initialCoordinates.X, Y: destinationCoordinates.Y - initialCoordinates.Y,
 	}
-	// : Remove sqrt
+	// TOOD: Remove sqrt
 	movementVectorLen := math.Sqrt(math.Pow(movementVector.X, 2) + math.Pow(movementVector.Y, 2))
 	timeToReachDestination := movementVectorLen / botVelocity
 	timeDelta := currentTime.Sub(movementStartTime).Seconds()
@@ -254,9 +265,8 @@ func GenerateMoveActionQuery(identifier string, username string, x float64, y fl
 func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
 	res, err := GetBotsFromDB(ctx.Value(USERNAME_VALUE).(string))
 	if err != nil {
-		// TODO: Convert to 500
 		slog.Error(err.Error())
-		return api.GetBots200JSONResponse{}, err
+		return nil, err
 	}
 	return api.GetBots200JSONResponse(res), nil
 }
@@ -265,9 +275,8 @@ func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (ap
 func (Server) GetBotsBotId(ctx context.Context, request api.GetBotsBotIdRequestObject) (api.GetBotsBotIdResponseObject, error) {
 	res, err := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
 	if err != nil {
-		// TODO: Convert to 500
 		slog.Error(err.Error())
-		return api.GetBotsBotId200JSONResponse{}, err
+		return nil, err
 	}
 	return api.GetBotsBotId200JSONResponse(res), nil
 }
@@ -284,7 +293,6 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 	var currentMine *api.Coordinates = nil
 	mines, err := GetMinesFromDB(username)
 	if err != nil {
-		// TODO: Convert to 500
 		slog.Error(err.Error())
 		return nil, err
 	}
@@ -308,24 +316,14 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 		// TODO: Convert to jet RawStatement (can't find support for x=x+1 in jet updates)
 		_, err = db.Exec(
 			// TODO: Use join instead of subquery
-			"UPDATE bots SET inventory_count = inventory_count + 1, updated_at = NOW() WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
+			"UPDATE bots SET inventory_count = inventory_count + 1, updated_at = NOW() "+
+				" WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
 			bot.Identifier, username,
 		)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
 		}
-		// TODO: Throw error if more than one mine is removed
-		// TODO: Convert to jet and remove subquery
-		// _, err = db.Exec(
-		// 	"DELETE FROM mines WHERE abs(x-$1) < $2 AND abs(y-$3) < $4 AND user_id = (SELECT id FROM users WHERE username = $5)",
-		// 	currentMine.X, 1e-9, currentMine.Y, 1e-9, username,
-		// )
-		// if err != nil {
-		// 	slog.Error(err.Error())
-		// 	return nil, err
-		// }
-		// TODO: Handle case where new coordinates spawn on top of new mine
 		var x float64
 		var y float64
 		newMineSet := false
@@ -349,24 +347,41 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 		if !newMineSet {
 			return nil, errors.New("could not get new mine coordinates")
 		}
-		stmt :=  Mines.UPDATE().SET(
-			Mines.X.SET(Float(x)),
-			Mines.Y.SET(Float(y)))
-		).WHERE(Link.Name.EQ())
-		// stmt := Mines.INSERT(Mines.X, Mines.Y, Mines.UserID).
-		// 	VALUES(x, y, GenerateUserIDSubquery(username))
-		_, err = stmt.Exec(db)
+		// TODO: Use join instead of subquery
+		now := time.Now()
+		newMine := model.Mines{X: x, Y: y, UpdatedAt: &now}
+		stmt := Mines.UPDATE(Mines.X, Mines.Y, Mines.UpdatedAt).MODEL(newMine).
+			WHERE(
+				Mines.X.BETWEEN(Float(currentMine.X-1e-2), Float(currentMine.X+1e-2)).
+					AND(Mines.Y.BETWEEN(Float(currentMine.Y-1e-2), Float(currentMine.Y+1e-2))).
+					AND(
+						Mines.UserID.EQ(
+							IntExp(
+								SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username))),
+							),
+						)))
+		res, err := stmt.Exec(db)
 		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+		rowCount, err := res.RowsAffected()
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+		if rowCount != 1 {
+			err = errors.New("more than one mine updated")
 			slog.Error(err.Error())
 			return nil, err
 		}
 		tx.Commit()
-		res, err := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
+		updatedBot, err := GetSingleBotFromDB(request.BotId, ctx.Value(USERNAME_VALUE).(string))
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
 		}
-		return api.PostBotsBotIdExtract200JSONResponse(res), nil
+		return api.PostBotsBotIdExtract200JSONResponse(updatedBot), nil
 	}
 }
 
@@ -550,8 +565,8 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 		return nil, err
 	}
 	resp := api.PostInit200JSONResponse{
-		Bots:  &bots,
-		Mines: &mines,
+		Bots:  bots,
+		Mines: mines,
 	}
 	slog.Info("Game has been reset", "username", username)
 	return api.PostInit200JSONResponse(resp), nil

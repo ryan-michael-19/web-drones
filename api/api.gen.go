@@ -567,8 +567,8 @@ type PostInitResponseObject interface {
 }
 
 type PostInit200JSONResponse struct {
-	Bots  *[]Bot         `json:"bots,omitempty"`
-	Mines *[]Coordinates `json:"mines,omitempty"`
+	Bots  []Bot         `json:"bots"`
+	Mines []Coordinates `json:"mines"`
 }
 
 func (response PostInit200JSONResponse) VisitPostInitResponse(w http.ResponseWriter) error {
