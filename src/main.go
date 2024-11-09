@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -11,22 +12,31 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
-	"github.com/ryan-michael-19/web-drones/schemas"
 	"github.com/ryan-michael-19/web-drones/utils"
 
+	"github.com/antonlindstrom/pgstore"
+	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
 	. "github.com/ryan-michael-19/web-drones/webdrones/public/table"
 
-	. "github.com/go-jet/jet/v2/postgres"
-
-	"github.com/gorilla/sessions"
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type s *pgconn.PgError
 
-var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
+// var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
+func makeStore() *pgstore.PGStore {
+	// TODO: Manage sessions in separate database?
+	sessionStore, err := pgstore.NewPGStore(utils.GetDBString(), []byte("Super secure plz no hax"))
+	if err != nil {
+		log.Fatalf("Cannot set up session db due to error: %v", err)
+	}
+	return sessionStore
+}
+
+var sessionStore = makeStore()
+
 func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
 		// TODO: Hook session information into postgres backend
@@ -42,7 +52,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			}
 			stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
 			var hashedPassword model.Users
-			err := stmt.Query(schemas.OpenDB(), &hashedPassword)
+			err := stmt.Query(utils.DB, &hashedPassword)
 			if err != nil {
 				return "Authentication Error", &utils.AuthError{OriginalError: err}
 			}
@@ -89,6 +99,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 }
 
 func main() {
+	fmt.Println("STARTING")
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
@@ -131,7 +142,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		_, err = schemas.OpenDB().Exec(string(file))
+		_, err = utils.OpenDB().Exec(string(file))
 		if err != nil {
 			log.Fatal(err)
 		}
