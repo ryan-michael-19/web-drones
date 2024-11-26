@@ -9,21 +9,19 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
 	"github.com/ryan-michael-19/web-drones/utils"
 
 	"github.com/antonlindstrom/pgstore"
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
 	. "github.com/ryan-michael-19/web-drones/webdrones/public/table"
 
 	"github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
 	"golang.org/x/crypto/bcrypt"
 )
-
-type s *pgconn.PgError
 
 // var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
 func makeStore() *pgstore.PGStore {
@@ -54,12 +52,16 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			var hashedPassword model.Users
 			err := stmt.Query(utils.DB, &hashedPassword)
 			if err != nil {
-				return "Authentication Error", &utils.AuthError{OriginalError: err}
+				if errors.Is(err, qrm.ErrNoRows) {
+					return "Authentication Error", &utils.AuthError{OriginalError: errors.New("invalid username or password")}
+				} else {
+					return "Authentication Error", &utils.AuthError{OriginalError: err}
+				}
 			}
 			err = bcrypt.CompareHashAndPassword([]byte(hashedPassword.Password), []byte(password))
 			if err != nil {
 				if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-					return "Authentication Error", &utils.AuthError{OriginalError: errors.New("username and password mismatch")}
+					return "Authentication Error", &utils.AuthError{OriginalError: errors.New("invalid username or password")}
 				} else {
 					return "Authentication Error", &utils.AuthError{OriginalError: err}
 				}
