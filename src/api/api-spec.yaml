@@ -1,11 +1,16 @@
 openapi: 3.0.0
 info:
-  version: 1.0.0
+  version: 0.0.1 
   title: Web Drones
   description: Api to play Web Drones!
+  x-logo:
+    url: https://github.com/user-attachments/assets/46ddb4ce-667f-4673-a869-3014de5a15e4
+    backgroundColor: "#FAFAFA"
+    altText: Web Drones Logo
 paths:
   /login:
     post:
+      summary: Log In
       description: Log in with username and password.
       security:
         - basicAuth: []
@@ -16,14 +21,17 @@ paths:
             text/plain:
               schema:
                 type: string
+              example: Login Successful
         '401':
           description: Returns when login fails from bad username/password combo
           content:
             text/plain:
               schema:
                 type: string
+              example: invalid username or password
   /newUser:
     post:
+      summary: Create New User
       description: Creates new user with associated password
       security:
         - basicAuth: []
@@ -34,15 +42,18 @@ paths:
             text/plain:
               schema:
                 type: string
+              example: New user created
         '401':
           description: Returns when login fails from bad username/password combo
           content:
             text/plain:
               schema:
                 type: string
+              example: invalid basic auth header
   /init:
     post:
-      description: initialize the game with mining locations and a single bot (temporary)
+      summary: Initialize game
+      description: initialize the game with mining locations and a single bot
       responses:
         '200':
           description: returns starting bots and mines
@@ -64,6 +75,7 @@ paths:
                   - mines
   /bots:
     get:
+      summary: Get all bot info
       description: Get an array of bots and what they're doing
       responses:
         '200':
@@ -76,6 +88,7 @@ paths:
                   $ref: '#/components/schemas/Bot'
   /bots/{botId}:
     get:
+      summary: Get single bot info
       description: Get a single bot by id
       parameters:
         - name: botId
@@ -92,6 +105,7 @@ paths:
                 $ref: '#/components/schemas/Bot'
   /bots/{botId}/move:
     post:
+      summary: Move a single bot
       description: Move bot to new location
       parameters:
         - name: botId
@@ -114,7 +128,8 @@ paths:
                 $ref: '#/components/schemas/Bot'
   /bots/{botId}/extract:
     post:
-      description: Mine scrap metal from bot's current location. Only works when bot is near a mine.
+      summary: Extract scrap
+      description: Extract scrap from a metal mine near bot's current location. Only works when bot is near a mine.
       parameters:
         - name: botId
           in: path
@@ -136,6 +151,7 @@ paths:
                 type: string
   /bots/{botId}/newBot:
     post:
+      summary: Make a new bot
       description: Make a new bot from scrap metal. A bot must have 3 scrap in their inventory to do this.
       parameters:
         - name: botId
@@ -170,6 +186,7 @@ paths:
                 type: string
   /mines:
     get:
+      summary: Get mines
       description: Get the coordinates of mines
       responses:
         '200':
