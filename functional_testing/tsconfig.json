@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+      "module": "ES2022",
+      "esModuleInterop": true,
+      "target": "es2021",
+      "moduleResolution": "node",
+      "sourceMap": true,
+      "outDir": "dist",
+      "types": ["node"]
+    },
+    "lib": ["es2022"]
+  }
