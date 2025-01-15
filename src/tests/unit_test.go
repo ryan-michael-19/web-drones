@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ryan-michael-19/web-drones/api"
-	"github.com/ryan-michael-19/web-drones/impl"
+	"github.com/ryan-michael-19/web-drones/utils/stateless"
 	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
 )
 
@@ -21,7 +21,7 @@ func TestGetBotLocation(t *testing.T) {
 	// higher functional risk
 
 	// test bot in movement
-	test_coords_1, err_1 := impl.GetBotLocation(
+	test_coords_1, err_1 := stateless.GetBotLocation(
 		api.Coordinates{X: 10, Y: 20},
 		api.Coordinates{X: 20, Y: 30},
 		time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
@@ -38,7 +38,7 @@ func TestGetBotLocation(t *testing.T) {
 	}
 
 	// test bot reaching location by boosting velocity
-	test_coords_2, err_2 := impl.GetBotLocation(
+	test_coords_2, err_2 := stateless.GetBotLocation(
 		api.Coordinates{X: 10, Y: 20},
 		api.Coordinates{X: 20, Y: 30},
 		time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
@@ -54,7 +54,7 @@ func TestGetBotLocation(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err_2)
 	}
 	// test different quadrants
-	test_coords_3, err_3 := impl.GetBotLocation(
+	test_coords_3, err_3 := stateless.GetBotLocation(
 		api.Coordinates{X: 10, Y: -20},
 		api.Coordinates{X: -20, Y: -30},
 		time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
@@ -71,7 +71,7 @@ func TestGetBotLocation(t *testing.T) {
 	}
 
 	// test error when end time is before start time
-	_, err_4 := impl.GetBotLocation(
+	_, err_4 := stateless.GetBotLocation(
 		api.Coordinates{X: 10, Y: -20},
 		api.Coordinates{X: -20, Y: -30},
 		time.Date(2024, 8, 26, 11, 8, 0, 0, time.UTC),
@@ -91,7 +91,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 		Name:       "Bob",
 	}
 	// Test ledger with single initialized bot
-	testLedger := []impl.BotsWithActions{
+	testLedger := []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -110,7 +110,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult, err := impl.GetBotsFromLedger(
+	testResult, err := stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
 	)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 		Identifier: "test 2",
 		Name:       "Rob",
 	}
-	testLedger = []impl.BotsWithActions{
+	testLedger = []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -160,7 +160,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult, err = impl.GetBotsFromLedger(
+	testResult, err = stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
 	)
 	if err != nil {
@@ -171,7 +171,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 
 	// Test a happy path of two action rows where bot reaches destination
-	testLedger = []impl.BotsWithActions{
+	testLedger = []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -199,7 +199,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	testResult, err = impl.GetBotsFromLedger(
+	testResult, err = stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 27, 0, time.UTC), 0.5, // just before reaching destination
 	)
 	if err != nil {
@@ -210,7 +210,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 
 	// Test three action rows.
-	testLedger = []impl.BotsWithActions{
+	testLedger = []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -247,7 +247,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult, err = impl.GetBotsFromLedger(
+	testResult, err = stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 14, 0, 0, time.UTC), 0.5,
 	)
 	if err != nil {
@@ -258,7 +258,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 
 	// Test where a subsequent action row interrupts the movement of its predecessor
-	testLedger = []impl.BotsWithActions{
+	testLedger = []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -295,7 +295,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.MOVING,
 		},
 	}
-	testResult, err = impl.GetBotsFromLedger(
+	testResult, err = stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 8, 17, 0, time.UTC), 0.5,
 	)
 	if err != nil {
@@ -306,7 +306,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 	}
 
 	// Test multiple bots
-	testLedger = []impl.BotsWithActions{
+	testLedger = []stateless.BotsWithActions{
 		{
 			Bots: bob,
 			BotMovementLedger: model.BotMovementLedger{
@@ -376,7 +376,7 @@ func TestGetBotsFromLedger(t *testing.T) {
 			Status:      api.IDLE,
 		},
 	}
-	testResult, err = impl.GetBotsFromLedger(
+	testResult, err = stateless.GetBotsFromLedger(
 		testLedger, time.Date(2024, 8, 26, 11, 59, 5, 0, time.UTC), 0.05,
 	)
 	if err != nil {

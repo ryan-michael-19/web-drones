@@ -1,4 +1,4 @@
-package utils
+package stateful
 
 import (
 	"database/sql"

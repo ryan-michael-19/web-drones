@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"reflect"
+	"math/rand"
 
 	"github.com/ryan-michael-19/web-drones/api"
-	"github.com/ryan-michael-19/web-drones/utils"
+	"github.com/ryan-michael-19/web-drones/utils/stateful"
+	. "github.com/ryan-michael-19/web-drones/utils/stateless"
 
-	"math/rand"
 	"time"
 
 	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
@@ -30,11 +30,6 @@ func NewServer() Server {
 
 func InRange(val1 float64, val2 float64) bool {
 	return math.Abs(val1-val2) < 1e-2
-}
-
-type BotsWithActions struct {
-	model.BotMovementLedger
-	model.Bots
 }
 
 var botVelocity = 0.5
@@ -70,7 +65,7 @@ func GetSingleBotFromDB(botId string, username string) (api.Bot, error) {
 		BotMovementLedger.TimeActionStarted.ASC(),
 	)
 	var ledger []BotsWithActions
-	err := stmt.Query(utils.DB, &ledger)
+	err := stmt.Query(stateful.DB, &ledger)
 	if err != nil {
 		return api.Bot{}, err
 	}
@@ -96,7 +91,7 @@ func GetBotsFromDB(username string) ([]api.Bot, error) {
 		BotMovementLedger.TimeActionStarted.ASC(),
 	)
 	var ledger []BotsWithActions
-	err := stmt.Query(utils.DB, &ledger)
+	err := stmt.Query(stateful.DB, &ledger)
 	if err != nil {
 		return []api.Bot{}, err
 	}
@@ -114,7 +109,7 @@ func GetMinesFromDB(username string) ([]api.Coordinates, error) {
 		Users.Username.EQ(String(username)),
 	)
 	var dbResults []model.Mines
-	err := stmt.Query(utils.DB, &dbResults)
+	err := stmt.Query(stateful.DB, &dbResults)
 	if err != nil {
 		return []api.Coordinates{}, err
 	}
@@ -124,100 +119,6 @@ func GetMinesFromDB(username string) ([]api.Coordinates, error) {
 		mines[i].Y = res.Y
 	}
 	return mines, nil
-}
-
-type GetBotLocationError struct {
-	message string
-}
-
-func (e *GetBotLocationError) Error() string {
-	return e.message
-}
-
-func GetBotLocation(
-	initialCoordinates api.Coordinates, destinationCoordinates api.Coordinates,
-	movementStartTime time.Time, currentTime time.Time, botVelocity float64,
-) (api.Coordinates, error) {
-	if currentTime.Before(movementStartTime) {
-		return api.Coordinates{X: 0, Y: 0}, &GetBotLocationError{
-			message: "Current time cannot be before movement start time"}
-	}
-	movementVector := api.Coordinates{
-		X: destinationCoordinates.X - initialCoordinates.X, Y: destinationCoordinates.Y - initialCoordinates.Y,
-	}
-	// TOOD: Remove sqrt
-	movementVectorLen := math.Sqrt(math.Pow(movementVector.X, 2) + math.Pow(movementVector.Y, 2))
-	timeToReachDestination := movementVectorLen / botVelocity
-	timeDelta := currentTime.Sub(movementStartTime).Seconds()
-	if timeDelta > timeToReachDestination {
-		return destinationCoordinates, nil
-	}
-	// Get the direction of the vector the bot is heading towards
-	currentMovementMagnitude := timeDelta * botVelocity
-	currentMovementDirection := math.Atan2(movementVector.Y, movementVector.X)
-
-	currentLocation := api.Coordinates{
-		X: (currentMovementMagnitude * math.Cos(currentMovementDirection)) + initialCoordinates.X,
-		Y: (currentMovementMagnitude * math.Sin(currentMovementDirection)) + initialCoordinates.Y,
-	}
-	return currentLocation, nil
-}
-
-func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botVelocity float64) ([]api.Bot, error) {
-	var bots []api.Bot
-	var currentBotCoords api.Coordinates
-	currentBotCoords = api.Coordinates{X: ledger[0].NewX, Y: ledger[0].NewY}
-	for i := range ledger {
-		if i < len(ledger)-1 && ledger[i].Identifier == ledger[i+1].Identifier {
-			// continue calculating velocity
-			var err error
-			currentBotCoords, err = GetBotLocation(
-				currentBotCoords,
-				api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY},
-				ledger[i].TimeActionStarted,
-				ledger[i+1].TimeActionStarted,
-				botVelocity,
-			)
-			if err != nil {
-				return []api.Bot{}, err
-			}
-		} else {
-			// We need the final position of the bot based on the last action
-			// it has recieved
-			var err error
-			currentBotCoords, err = GetBotLocation(
-				currentBotCoords,
-				api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY},
-				ledger[i].TimeActionStarted,
-				currentDatetime,
-				botVelocity,
-			)
-			if err != nil {
-				return []api.Bot{}, err
-			}
-			var botStatus api.BotStatus
-			// Set bot to idle if it is at the coordinates of its last move action
-			if reflect.DeepEqual(currentBotCoords, api.Coordinates{X: ledger[i].NewX, Y: ledger[i].NewY}) {
-				botStatus = api.IDLE
-			} else {
-				botStatus = api.MOVING
-			}
-
-			bot := api.Bot{
-				Coordinates: currentBotCoords,
-				Identifier:  ledger[i].Identifier,
-				Name:        ledger[i].Name,
-				Status:      botStatus,
-				Inventory:   int(ledger[i].InventoryCount),
-			}
-			bots = append(bots, bot)
-			// Initialize coordinates for the next bot (if it exists)
-			if i < len(ledger)-1 {
-				currentBotCoords = api.Coordinates{X: ledger[i+1].NewX, Y: ledger[i+1].NewY}
-			}
-		}
-	}
-	return bots, nil
 }
 
 func GenerateMoveActionQuery(identifier string, username string, x float64, y float64) postgres.InsertStatement {
@@ -279,14 +180,14 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 	} else {
 		// Add scrap metal to bot's inventory.
 		// Then delete the mine and create a new one.
-		tx, err := utils.DB.Begin()
+		tx, err := stateful.DB.Begin()
 		defer tx.Rollback()
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
 		}
 		// TODO: Convert to jet RawStatement (can't find support for x=x+1 in jet updates)
-		_, err = utils.DB.Exec(
+		_, err = stateful.DB.Exec(
 			// TODO: Use join instead of subquery
 			"UPDATE bots SET inventory_count = inventory_count + 1, updated_at = NOW() "+
 				" WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
@@ -332,7 +233,7 @@ func (Server) PostBotsBotIdExtract(ctx context.Context, request api.PostBotsBotI
 								SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username))),
 							),
 						)))
-		res, err := stmt.Exec(utils.DB)
+		res, err := stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -366,13 +267,13 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 	}
 	if bot.Inventory >= 3 {
 		username := ctx.Value(USERNAME_VALUE).(string)
-		tx, err := utils.DB.Begin()
+		tx, err := stateful.DB.Begin()
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
 		}
 		defer tx.Rollback()
-		utils.DB.Exec(
+		stateful.DB.Exec(
 			// TODO: Convert to jet and remove subquery
 			"UPDATE bots SET inventory_count = inventory_count - 3, updated_at = NOW() "+
 				"WHERE identifier = $1 AND user_id = (SELECT id FROM users WHERE username = $2)",
@@ -382,7 +283,7 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 		stmt := Bots.INSERT(Bots.Identifier, Bots.InventoryCount, Bots.Name, Bots.UserID).VALUES(
 			uuid, 0, request.Body.NewBotName, GenerateUserIDSubquery(username),
 		)
-		_, err = stmt.Exec(utils.DB)
+		_, err = stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -390,7 +291,7 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 		stmt = GenerateMoveActionQuery(
 			uuid, ctx.Value(USERNAME_VALUE).(string), bot.Coordinates.X, bot.Coordinates.Y,
 		)
-		_, err = stmt.Exec(utils.DB)
+		_, err = stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -419,7 +320,7 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 // (POST /init)
 func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (api.PostInitResponseObject, error) {
 	username := ctx.Value(USERNAME_VALUE).(string)
-	tx, err := utils.DB.Begin()
+	tx, err := stateful.DB.Begin()
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
@@ -432,7 +333,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 				Users.Username.EQ(String(username)),
 			),
 		)
-		_, err := stmt.Exec(utils.DB)
+		_, err := stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -444,7 +345,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 				Users.Username.EQ(String(username)),
 			),
 		)
-		_, err := stmt.Exec(utils.DB)
+		_, err := stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -456,7 +357,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 				Users.Username.EQ(String(username)),
 			),
 		)
-		_, err := stmt.Exec(utils.DB)
+		_, err := stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -492,7 +393,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 		).VALUES(
 			NOW(), NOW(), uuid, newBot.botName, 0, GenerateUserIDSubquery(username),
 		)
-		_, err = stmt.Exec(utils.DB)
+		_, err = stmt.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -500,7 +401,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 		moveStatement := GenerateMoveActionQuery(
 			uuid, username, newBot.coords.X, newBot.coords.Y,
 		)
-		_, err = moveStatement.Exec(utils.DB)
+		_, err = moveStatement.Exec(stateful.DB)
 		if err != nil {
 			slog.Error(err.Error())
 			return nil, err
@@ -516,7 +417,7 @@ func (Server) PostInit(ctx context.Context, request api.PostInitRequestObject) (
 			NOW(), NOW(), SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username))), x, y,
 		)
 	}
-	_, err = stmt.Exec(utils.DB)
+	_, err = stmt.Exec(stateful.DB)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
@@ -556,7 +457,7 @@ func (Server) PostBotsBotIdMove(ctx context.Context, request api.PostBotsBotIdMo
 	stmt := GenerateMoveActionQuery(
 		request.BotId, ctx.Value(USERNAME_VALUE).(string), request.Body.X, request.Body.Y,
 	)
-	status, err := stmt.Exec(utils.DB)
+	status, err := stmt.Exec(stateful.DB)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
