@@ -8,4 +8,4 @@ Web Drones is a game about exploring the world with drones to create more drones
 
 I am not currently hosting the game, but it can be ran in containers with the attached `docker-compose.yaml`. BE MINDFUL EXPOSING THIS SERVER TO THE INTERNET. I still have some hardcoded passwords and encryption keys in the source.
 
-API documentation coming soon!
+API documentation at https://ryan-michael-19.github.io/web-drones/
