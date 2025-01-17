@@ -7,7 +7,7 @@ import (
 
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
-	"github.com/ryan-michael-19/web-drones/utils"
+	"github.com/ryan-michael-19/web-drones/utils/stateful"
 )
 
 var S = impl.NewServer()
@@ -16,7 +16,7 @@ var USERNAME = "test_username"
 // Test initialization (rest of tests depend on initialization)
 func TestInitialization(t *testing.T) {
 	// Set up the user for the rest of the testing
-	err := utils.CreateNewUser("test_username", "test_password")
+	err := stateful.CreateNewUser("test_username", "test_password")
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

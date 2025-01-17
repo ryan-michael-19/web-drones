@@ -1,6 +1,7 @@
 package stateless
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"time"
@@ -106,4 +107,37 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botV
 		}
 	}
 	return bots, nil
+}
+
+// Set up an error struct that will log what's going on with the server
+// without leaking server errors to the client
+// TODO: Use error wrapping???
+type AuthError struct {
+	OriginalError error
+	NewError      error
+}
+
+func (e *AuthError) BothErrors() string {
+	var newErrorMessage string
+	if e.NewError != nil {
+		newErrorMessage = e.NewError.Error()
+	} else {
+		newErrorMessage = ""
+	}
+	var originalErrorMessage string
+	if e.OriginalError != nil {
+		originalErrorMessage = e.OriginalError.Error()
+	} else {
+		originalErrorMessage = ""
+	}
+	// TODO: Convert this to slog for observability
+	return fmt.Sprintf("Authentication error: Original: %s New: %s", originalErrorMessage, newErrorMessage)
+}
+
+func (e *AuthError) Error() string {
+	if e.NewError == nil {
+		return "Unspecified authentication error"
+	} else {
+		return fmt.Sprintf("Authentication error: %s", e.NewError.Error())
+	}
 }
