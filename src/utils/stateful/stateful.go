@@ -91,8 +91,24 @@ func CreateNewUser(username string, password string) error {
 func GetDBString() string {
 	hostname, present := os.LookupEnv("DB_HOSTNAME")
 	if !present || hostname == "" {
+		slog.Warn("DB hostname not set. Using \"localhost\".")
 		hostname = "localhost"
 	}
-	dbString := fmt.Sprintf("postgres://user:password@%s:5432/webdrones?sslmode=disable", hostname)
+	username, present := os.LookupEnv("POSTGRES_USER")
+	if !present || username == "" {
+		slog.Warn("DB username not set. Using \"user\".")
+		username = "user"
+	}
+	password, present := os.LookupEnv("POSTGRES_PASSWORD")
+	if !present || password == "" {
+		slog.Warn("DB password not set. Using \"password\".")
+		password = "password"
+	}
+	dbName, present := os.LookupEnv("POSTGRES_DB")
+	if !present || password == "" {
+		slog.Warn("DB name not set. Using \"webdrones\".")
+		dbName = "webdrones"
+	}
+	dbString := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", username, password, hostname, dbName)
 	return dbString
 }

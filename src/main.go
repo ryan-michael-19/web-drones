@@ -24,10 +24,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// var sessionStore = sessions.NewCookieStore([]byte("Super secure plz no hax")) // TODO: SET UP ENCRYPTION KEYS
 func makeStore() *pgstore.PGStore {
 	// TODO: Manage sessions in separate database?
-	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), []byte("Super secure plz no hax"))
+	sessionEncrpytionKey, present := os.LookupEnv("SESSION_KEY")
+	if !present || sessionEncrpytionKey == "" {
+		slog.Warn("SESSION_KEY is not set! Sessions will be encrypted with a hardcoded key.")
+		sessionEncrpytionKey = "Super secure pls no hax"
+	}
+	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), []byte(sessionEncrpytionKey))
 	if err != nil {
 		log.Fatalf("Cannot set up session db due to error: %v", err)
 	}
