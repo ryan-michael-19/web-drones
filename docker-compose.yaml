@@ -4,8 +4,15 @@ services:
     restart: always
     # set shared memory limit when using docker-compose
     shm_size: 128mb
-    env_file:
-      - .env
+    secrets:
+      - postgres_pw
+      - encryption_key
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
+      SESSION_KEY_FILE: /run/secrets/encryption_key
+      POSTGRES_USER: user
+      POSTGRES_DB: webdrones
+      DB_HOSTNAME: db
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
     ports:
@@ -15,8 +22,15 @@ services:
     depends_on:
       - db
     build: .
-    env_file:
-      - .env
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
+      SESSION_KEY_FILE: /run/secrets/encryption_key
+      POSTGRES_USER: user
+      POSTGRES_DB: webdrones
+      DB_HOSTNAME: db
+    secrets:
+      - postgres_pw
+      - encryption_key
     image: server
     # Even though we have db set as a dependency this service comes up
     # before the database is ready. Ugh
@@ -31,8 +45,12 @@ services:
       - db
       - server
     image: server
-    env_file:
-      - .env
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
+      SESSION_KEY_FILE: /run/secrets/encryption_key
+      POSTGRES_USER: user
+      POSTGRES_DB: webdrones
+      DB_HOSTNAME: db
     command:
       # Even though we have db set as a dependency this service comes up
       # before the database is ready. Ugh
@@ -41,3 +59,9 @@ services:
       - sleep 10 && /app/web-drones SCHEMA
     profiles:
       - init
+
+secrets:
+  postgres_pw:
+    file: ./postgres_pw.txt
+  encryption_key:
+    file: ./encryption_key.txt

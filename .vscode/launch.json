@@ -32,7 +32,16 @@
             "env": {
                 "GO111MODULE": "on"
             },
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Game Tester",
+            "program": "${workspaceFolder}/functional_testing/run_game.ts",
+            "args": ["single"],
+            "preLaunchTask": "ts build",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/functional_testing/dist/**/*.js"]
         }
-
     ]
 }

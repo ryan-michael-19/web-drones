@@ -99,13 +99,24 @@ func GetDBString() string {
 		slog.Warn("DB username not set. Using \"user\".")
 		username = "user"
 	}
-	password, present := os.LookupEnv("POSTGRES_PASSWORD")
-	if !present || password == "" {
-		slog.Warn("DB password not set. Using \"password\".")
-		password = "password"
+	var password string
+	passwordFile, present := os.LookupEnv("POSTGRES_PASSWORD_FILE")
+	if !present || passwordFile == "" {
+		slog.Warn("DB password file location not set. Attempting to use environment variable.")
+		password, present := os.LookupEnv("POSTGRES_PASSWORD")
+		if !present || password == "" {
+			slog.Warn("DB password not set. Using \"password\".")
+			password = "password"
+		}
+	} else { // password file exists
+		dbPasswordByteArray, err := os.ReadFile(passwordFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		password = string(dbPasswordByteArray)
 	}
 	dbName, present := os.LookupEnv("POSTGRES_DB")
-	if !present || password == "" {
+	if !present || dbName == "" {
 		slog.Warn("DB name not set. Using \"webdrones\".")
 		dbName = "webdrones"
 	}

@@ -24,14 +24,30 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func makeStore() *pgstore.PGStore {
-	// TODO: Manage sessions in separate database?
-	sessionEncrpytionKey, present := os.LookupEnv("SESSION_KEY")
-	if !present || sessionEncrpytionKey == "" {
-		slog.Warn("SESSION_KEY is not set! Sessions will be encrypted with a hardcoded key.")
-		sessionEncrpytionKey = "Super secure pls no hax"
+func getSessionEncryptionKey() []byte {
+	var sessionEncryptionKey []byte
+	sessionFile, present := os.LookupEnv("SESSION_KEY_FILE")
+	if !present || sessionFile == "" { // session key file does not exist
+		sessionEncrpytionKeyString, present := os.LookupEnv("SESSION_KEY")
+		if !present || sessionEncrpytionKeyString == "" {
+			slog.Warn("SESSION_KEY and SESSION_KEY_FILE are not set! Sessions will be encrypted with a hardcoded key.")
+			sessionEncryptionKey = []byte("Super secure pls no hax")
+		} else { // Session key variable exists
+			sessionEncryptionKey = []byte(sessionEncrpytionKeyString)
+		}
+	} else { // Session key file exists
+		var err error
+		sessionEncryptionKey, err = os.ReadFile(sessionFile)
+		if err != nil {
+			log.Fatalf("Error reading session key file: %v", err)
+		}
 	}
-	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), []byte(sessionEncrpytionKey))
+	return sessionEncryptionKey
+}
+
+func makeStore() *pgstore.PGStore {
+	sessionEncryptionKey := getSessionEncryptionKey()
+	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), sessionEncryptionKey)
 	if err != nil {
 		log.Fatalf("Cannot set up session db due to error: %v", err)
 	}
@@ -140,7 +156,7 @@ func main() {
 
 		s := &http.Server{
 			Handler: h,
-			Addr:    "127.0.0.1:8080",
+			Addr:    "0.0.0.0:8080",
 		}
 		// And we serve HTTP until the world ends.
 		log.Fatal(s.ListenAndServe())

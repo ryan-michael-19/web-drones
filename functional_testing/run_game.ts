@@ -57,6 +57,7 @@ async function RunGame(username: string, password: string) {
         }
     })();
     const res1 = await CLIENT.POST("/init");
+    console.log(res1.error)
     const bots = res1.data.bots;
     
     const res2 = await CLIENT.GET("/mines");

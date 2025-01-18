@@ -1,4 +1,6 @@
 $env:GO111MODULE="on"
+$env:POSTGRES_PASSWORD=(Get-Content ../postgres_pw.txt)
+echo $env:POSTGRES_PASSWORD
 Set-Location ../src
 # TODO: Fix pathing in main.go
 # WARNING! This will only work if the server has its
