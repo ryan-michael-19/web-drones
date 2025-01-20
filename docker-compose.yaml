@@ -51,6 +51,9 @@ services:
       POSTGRES_USER: user
       POSTGRES_DB: webdrones
       DB_HOSTNAME: db
+    secrets:
+      - postgres_pw
+      - encryption_key
     command:
       # Even though we have db set as a dependency this service comes up
       # before the database is ready. Ugh
