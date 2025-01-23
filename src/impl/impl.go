@@ -280,8 +280,9 @@ func (Server) PostBotsBotIdNewBot(ctx context.Context, request api.PostBotsBotId
 			bot.Identifier, username,
 		)
 		uuid := uuid.NewString()
-		stmt := Bots.INSERT(Bots.Identifier, Bots.InventoryCount, Bots.Name, Bots.UserID).VALUES(
-			uuid, 0, request.Body.NewBotName, GenerateUserIDSubquery(username),
+		stmt := Bots.INSERT(
+			Bots.CreatedAt, Bots.UpdatedAt, Bots.Identifier, Bots.InventoryCount, Bots.Name, Bots.UserID).VALUES(
+			NOW(), NOW(), uuid, 0, request.Body.NewBotName, GenerateUserIDSubquery(username),
 		)
 		_, err = stmt.Exec(stateful.DB)
 		if err != nil {
