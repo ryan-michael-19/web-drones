@@ -8,6 +8,21 @@ info:
     backgroundColor: "#FAFAFA"
     altText: Web Drones Logo
 paths:
+  /:
+    get:
+      content:
+        text/plain:
+          schema:
+            type: string
+      security: []
+      responses:
+        '200':
+          description: Send a nice welcome message to the endpoint people hit going to https://webdrones.net/
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Welcome to Web Drones! Send a POST with a Basic Auth header to /newUser to play. See https://ryan-michael-19.github.io/web-drones/ for more details.
   /login:
     post:
       summary: Log In

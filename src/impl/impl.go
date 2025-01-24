@@ -134,6 +134,11 @@ func GenerateMoveActionQuery(identifier string, username string, x float64, y fl
 	)
 }
 
+// (GET /)
+func (Server) Get(ctx context.Context, request api.GetRequestObject) (api.GetResponseObject, error) {
+	return api.Get200TextResponse("Welcome to Web Drones! Send a POST with a Basic Auth header to /newUser to play. See https://ryan-michael-19.github.io/web-drones/ for more details."), nil
+}
+
 // (GET /bots)
 func (Server) GetBots(ctx context.Context, request api.GetBotsRequestObject) (api.GetBotsResponseObject, error) {
 	res, err := GetBotsFromDB(ctx.Value(USERNAME_VALUE).(string))

@@ -12,11 +12,9 @@
             "program": "${workspaceFolder}/src/main.go",
             "env": {
                 "GO111MODULE": "on",
-                // These MUST match the .env file...
                 "POSTGRES_USER": "user",
-                "POSTGRES_PASSWORD": "password",
+                "POSTGRES_PASSWORD": "asdf",
                 "POSTGRES_DB": "webdrones",
-                // ...except for this
                 "DB_HOSTNAME": "localhost",
                 "SESSION_KEY": "From launch.json INSECURE"
             },
