@@ -4,3 +4,5 @@ pkg/
 client/node_modules
 *.exe
 certs/*
+encryption_key.txt
+postgres_pw.txt
