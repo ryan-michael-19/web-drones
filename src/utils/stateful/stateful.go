@@ -103,7 +103,7 @@ func GetDBString() string {
 	passwordFile, present := os.LookupEnv("POSTGRES_PASSWORD_FILE")
 	if !present || passwordFile == "" {
 		slog.Warn("DB password file location not set. Attempting to use environment variable.")
-		password, present := os.LookupEnv("POSTGRES_PASSWORD")
+		password, present = os.LookupEnv("POSTGRES_PASSWORD")
 		if !present || password == "" {
 			slog.Warn("DB password not set. Using \"password\".")
 			password = "password"
