@@ -46,7 +46,8 @@ services:
     image: nginx:latest
     volumes:
      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-     - ./certs:/certs
+     - /etc/letsencrypt/live/webdrones.net/fullchain.pem:/certs/fullchain.pem:ro
+     - /etc/letsencrypt/live/webdrones.net/privkey.pem:/certs/privkey.pem:ro
     ports:
       - "443:443"
       - "80:80"
