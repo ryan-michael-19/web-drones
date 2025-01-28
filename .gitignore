@@ -1,9 +1,12 @@
 **/**.log
 go.work*
 pkg/
-client/node_modules
 *.exe
 certs/*
 encryption_key.txt
 postgres_pw.txt
 GITHUB_TOKEN
+functional_testing/cookies
+functional_testing/dist
+functional_testing/node_modules
+functional_testing/.env

@@ -1,0 +1,28 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@types/pg": "^8.11.10",
+    "kysely-codegen": "^0.17.0",
+    "openapi-typescript": "^7.4.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "kysely": "^0.27.5",
+    "openapi-fetch": "^0.12.2",
+    "pg": "^8.13.1",
+    "process": "^0.11.10"
+  }
+}
