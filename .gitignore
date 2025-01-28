@@ -6,3 +6,4 @@ client/node_modules
 certs/*
 encryption_key.txt
 postgres_pw.txt
+GITHUB_TOKEN
