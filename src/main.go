@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
@@ -46,6 +48,9 @@ func getSessionEncryptionKey() []byte {
 }
 
 func makeStore() *pgstore.PGStore {
+	// so we can use time objects in session.Values
+	// https://stackoverflow.com/questions/24834480/using-custom-types-with-gorilla-sessions
+	gob.Register(time.Time{})
 	sessionEncryptionKey := getSessionEncryptionKey()
 	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), sessionEncryptionKey)
 	if err != nil {
@@ -55,6 +60,20 @@ func makeStore() *pgstore.PGStore {
 }
 
 var sessionStore = makeStore()
+
+func requestsPerSecondToTimeout(requestRate float64) float64 {
+	return 1 / requestRate
+}
+
+var rateLimitLength = requestsPerSecondToTimeout(2)
+
+type RateLimitError struct {
+	message string
+}
+
+func (e *RateLimitError) Error() string {
+	return e.message
+}
 
 func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
@@ -67,6 +86,14 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 		if err != nil {
 			return "Authentication Error", &stateless.AuthError{OriginalError: err}
 		}
+
+		lastRequest, ok := session.Values["lastRequest"]
+		if ok && time.Since(lastRequest.(time.Time)).Seconds() < rateLimitLength {
+			return "Timeout Error", &RateLimitError{message: "Rate limit reached. Please try again later."}
+		} else { // last request does not exist or happened longer ago than the rate limit length
+			session.Values["lastRequest"] = time.Now()
+		}
+
 		if operationID == "PostLogin" {
 			// check against db
 			username, password, ok := r.BasicAuth()

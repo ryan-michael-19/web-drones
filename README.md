@@ -9,3 +9,5 @@ Web Drones is a game about exploring the world with drones to create more drones
 I am not currently hosting the game, but it can be ran in containers with the attached `docker-compose.yaml`.
 
 API documentation at https://ryan-michael-19.github.io/web-drones/
+
+The current rate limit is set to 2 requests per second.

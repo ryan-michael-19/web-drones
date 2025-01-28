@@ -4,7 +4,7 @@ import createClient, {type Middleware} from "openapi-fetch";
 import {writeFileSync, readFileSync} from "fs";
 import process from "process";
 
-
+const SLEEP_TIME = 1000;
 
 function distanceSquared (x: number, y: number): number {
     return (x**2) + (y**2);
@@ -20,7 +20,7 @@ async function RunGame(username: string, password: string) {
                 const authString = btoa(`${username}:${password}`)
                 request.headers.set("Authorization", `Basic ${authString}`);
             } else {
-                const cookieData = readFileSync(`./${username}-cookie`);
+                const cookieData = readFileSync(`./cookies/${username}-cookie`);
                 // for all other paths, set Authorization header as expected
                 request.headers.set("Cookie",`${cookieData}`);
             }
@@ -32,7 +32,7 @@ async function RunGame(username: string, password: string) {
                 const cookie = response.headers.getSetCookie()[0];
                 // cookie will be undefined if there is an HTTP error
                 if (cookie !== undefined) {
-                    writeFileSync(`./${username}-cookie`, cookie);
+                    writeFileSync(`./cookies/${username}-cookie`, cookie);
                 }
             }
             return undefined; // don't modify anything!!
@@ -40,8 +40,8 @@ async function RunGame(username: string, password: string) {
     };
 
     const CLIENT = createClient<paths>({
-        // baseUrl: "http://localhost:8080",
-        baseUrl: "https://webdrones.net",
+        baseUrl: "http://localhost:8080",
+        // baseUrl: "https://webdrones.net",
         headers: {
             "Content-Type" : "plain/text"
         }
@@ -55,13 +55,16 @@ async function RunGame(username: string, password: string) {
             console.log("LOGGING IN");
             // const {data, error} = await CLIENT.POST("/login", {parseAs:"text"});
             await CLIENT.POST("/login", {parseAs:"text"});
+            await new Promise(r => setTimeout(r, SLEEP_TIME));
         }
     })();
     const res1 = await CLIENT.POST("/init");
+    await new Promise(r => setTimeout(r, SLEEP_TIME));
     console.log(res1.error)
     const bots = res1.data.bots;
     
     const res2 = await CLIENT.GET("/mines");
+    await new Promise(r => setTimeout(r, SLEEP_TIME));
     const mines = res2.data;
     await Promise.all(bots.map(async bot => {
         const params = {path: {botId:bot.identifier}}
@@ -94,6 +97,7 @@ async function RunGame(username: string, password: string) {
                     y: closestMine.y
                 }
             });
+            await new Promise(r => setTimeout(r, SLEEP_TIME));
             // TODO: Calculate time it takes bot to get to destination instead of looping
             // TODO: unlearn my functional programming brainrot
             const waitTillBotReachesDestination = async (w: ()=>Promise<boolean>) => {
@@ -110,12 +114,14 @@ async function RunGame(username: string, password: string) {
                         }
                     }
                 });
+                await new Promise(r => setTimeout(r, SLEEP_TIME));
                 return eps(data.coordinates.x, closestMine.x) && eps(data.coordinates.y, closestMine.y);
             });
             console.log(`${username}: ${bot.identifier} is mining at ${closestMine}`);
             await CLIENT.POST("/bots/{botId}/extract", {
                 params: params
             });
+            await new Promise(r => setTimeout(r, SLEEP_TIME));
         }
         // Make a new bot with the scrap metal
         await CLIENT.POST("/bots/{botId}/newBot", {params:params, body:{NewBotName:"New Bot"}});
