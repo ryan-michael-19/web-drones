@@ -13,15 +13,24 @@ import (
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/utils/stateless"
+	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
 	. "github.com/ryan-michael-19/web-drones/webdrones/public/table"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// TODO: Move these to a "globals" file.
 var _ = BuildLogger()
 var DB = OpenDB()
+
+// TODO: Use a config file for these?
+var BotVelocity = 0.5
+var MineMax = 50.0
+var MineMin = -50.0
 
 func OpenDB() *sql.DB {
 	db, err := sql.Open(
@@ -122,4 +131,205 @@ func GetDBString() string {
 	}
 	dbString := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", username, password, hostname, dbName)
 	return dbString
+}
+
+type InitialGameState struct {
+	Bots  []api.Bot
+	Mines []api.Coordinates
+}
+
+func InitGame(username string) (*InitialGameState, error) {
+	tx, err := DB.Begin()
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	defer tx.Rollback()
+	// TODO: Convert this all into one query
+	{
+		stmt := BotMovementLedger.DELETE().USING(Users).WHERE(
+			BotMovementLedger.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(username)),
+			),
+		)
+		_, err := stmt.Exec(DB)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+	}
+	{
+		stmt := Bots.DELETE().USING(Users).WHERE(
+			Bots.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(username)),
+			),
+		)
+		_, err := stmt.Exec(DB)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+	}
+	{
+		stmt := Mines.DELETE().USING(Users).WHERE(
+			Mines.UserID.EQ(Users.ID).AND(
+				Users.Username.EQ(String(username)),
+			),
+		)
+		_, err := stmt.Exec(DB)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+	}
+	newBots := []struct {
+		botName string
+		coords  api.Coordinates
+	}{
+		{
+			botName: "Bob",
+			coords: api.Coordinates{
+				X: 0, Y: 0,
+			},
+		},
+		{
+			botName: "Sam",
+			coords: api.Coordinates{
+				X: 5, Y: 5,
+			},
+		},
+		{
+			botName: "Gretchen",
+			coords: api.Coordinates{
+				X: -5, Y: -5,
+			},
+		},
+	}
+	for _, newBot := range newBots {
+		uuid := uuid.NewString()
+		stmt := Bots.INSERT(
+			Bots.CreatedAt, Bots.UpdatedAt, Bots.Identifier, Bots.Name, Bots.InventoryCount, Bots.UserID,
+		).VALUES(
+			NOW(), NOW(), uuid, newBot.botName, 0, stateless.GenerateUserIDSubquery(username),
+		)
+		_, err = stmt.Exec(DB)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+		moveStatement := stateless.GenerateMoveActionQuery(
+			uuid, username, newBot.coords.X, newBot.coords.Y,
+		)
+		_, err = moveStatement.Exec(DB)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, err
+		}
+	}
+	stmt := Mines.INSERT(
+		Mines.CreatedAt, Mines.UpdatedAt, Mines.UserID, Mines.X, Mines.Y,
+	)
+	mineCount := 10
+	for range mineCount {
+		x, y := stateless.NewRandomCoordinates(MineMin, MineMax)
+		stmt = stmt.VALUES(
+			NOW(), NOW(), SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username))), x, y,
+		)
+	}
+	_, err = stmt.Exec(DB)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	bots, err := GetBotsFromDB(username)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	mines, err := GetMinesFromDB(username)
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, err
+	}
+	return &InitialGameState{
+		Bots:  bots,
+		Mines: mines,
+	}, nil
+
+}
+
+func GetBotsFromDB(username string) ([]api.Bot, error) {
+	stmt := SELECT(
+		Bots.Identifier, Bots.Name, Bots.InventoryCount,
+		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
+	).FROM(
+		Bots.INNER_JOIN(
+			BotMovementLedger, BotMovementLedger.BotID.EQ(Bots.ID),
+		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)),
+	).ORDER_BY(
+		Bots.Identifier.ASC(),
+		BotMovementLedger.TimeActionStarted.ASC(),
+	)
+	var ledger []stateless.BotsWithActions
+	err := stmt.Query(DB, &ledger)
+	if err != nil {
+		return []api.Bot{}, err
+	}
+	res, err := stateless.GetBotsFromLedger(ledger, time.Now(), BotVelocity)
+	if err != nil {
+		return []api.Bot{}, err
+	}
+	return res, nil
+}
+
+func GetMinesFromDB(username string) ([]api.Coordinates, error) {
+	stmt := SELECT(Mines.X, Mines.Y).FROM(
+		Mines.INNER_JOIN(Users, Users.ID.EQ(Mines.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)),
+	)
+	var dbResults []model.Mines
+	err := stmt.Query(DB, &dbResults)
+	if err != nil {
+		return []api.Coordinates{}, err
+	}
+	mines := make([]api.Coordinates, len(dbResults))
+	for i, res := range dbResults {
+		mines[i].X = res.X
+		mines[i].Y = res.Y
+	}
+	return mines, nil
+}
+
+func GetSingleBotFromDB(botId string, username string) (api.Bot, error) {
+	stmt := SELECT(
+		Bots.Identifier, Bots.Name, Bots.InventoryCount,
+		BotMovementLedger.NewX, BotMovementLedger.NewY, BotMovementLedger.TimeActionStarted,
+	).FROM(
+		Bots.INNER_JOIN(
+			BotMovementLedger, BotMovementLedger.BotID.EQ(Bots.ID),
+		).INNER_JOIN(Users, Users.ID.EQ(Bots.UserID)),
+	).WHERE(
+		Users.Username.EQ(String(username)).AND(Bots.Identifier.EQ(String(botId))),
+	).ORDER_BY(
+		Bots.Identifier.ASC(),
+		BotMovementLedger.TimeActionStarted.ASC(),
+	)
+	var ledger []stateless.BotsWithActions
+	err := stmt.Query(DB, &ledger)
+	if err != nil {
+		return api.Bot{}, err
+	}
+	res, err := stateless.GetBotsFromLedger(ledger, time.Now(), BotVelocity)
+	if err != nil {
+		return api.Bot{}, err
+	}
+	return res[0], nil
 }

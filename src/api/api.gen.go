@@ -631,14 +631,16 @@ type PostNewUserResponseObject interface {
 	VisitPostNewUserResponse(w http.ResponseWriter) error
 }
 
-type PostNewUser200TextResponse string
+type PostNewUser200JSONResponse struct {
+	Bots  []Bot         `json:"bots"`
+	Mines []Coordinates `json:"mines"`
+}
 
-func (response PostNewUser200TextResponse) VisitPostNewUserResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/plain")
+func (response PostNewUser200JSONResponse) VisitPostNewUserResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
-	_, err := w.Write([]byte(response))
-	return err
+	return json.NewEncoder(w).Encode(response)
 }
 
 type PostNewUser401TextResponse string

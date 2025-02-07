@@ -17,7 +17,7 @@ paths:
       security: []
       responses:
         '200':
-          description: Send a nice welcome message to the endpoint people hit going to https://webdrones.net/
+          description: Send a nice welcome message 
           content:
             text/plain:
               schema:
@@ -52,12 +52,23 @@ paths:
         - basicAuth: []
       responses:
         '200':
-          description: Creates new user and logs them in on success 
+          description: Creates new user, logs them in, and returns starting bots and mines
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-              example: New user created
+                type: object
+                properties:
+                  bots:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Bot"
+                  mines:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Coordinates"
+                required:
+                  - bots
+                  - mines
         '401':
           description: Returns when login fails from bad username/password combo
           content:

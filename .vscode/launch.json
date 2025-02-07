@@ -36,6 +36,7 @@
             "request": "launch",
             "name": "Launch Game Tester",
             "program": "${workspaceFolder}/functional_testing/run_game.ts",
+            "cwd": "${workspaceFolder}/functional_testing/",
             "args": ["single"],
             "preLaunchTask": "ts build",
             "sourceMaps": true,

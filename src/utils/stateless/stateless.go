@@ -3,11 +3,16 @@ package stateless
 import (
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"reflect"
 	"time"
 
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/webdrones/public/model"
+	. "github.com/ryan-michael-19/web-drones/webdrones/public/table"
+
+	"github.com/go-jet/jet/v2/postgres"
+	. "github.com/go-jet/jet/v2/postgres"
 )
 
 type BotsWithActions struct {
@@ -107,6 +112,29 @@ func GetBotsFromLedger(ledger []BotsWithActions, currentDatetime time.Time, botV
 		}
 	}
 	return bots, nil
+}
+
+func GenerateUserIDSubquery(username string) postgres.SelectStatement {
+	return SELECT(Users.ID).FROM(Users).WHERE(Users.Username.EQ(String(username)))
+}
+
+func GenerateMoveActionQuery(identifier string, username string, x float64, y float64) postgres.InsertStatement {
+	return BotMovementLedger.INSERT(
+		BotMovementLedger.CreatedAt, BotMovementLedger.UpdatedAt,
+		BotMovementLedger.BotID, BotMovementLedger.UserID,
+		BotMovementLedger.TimeActionStarted, BotMovementLedger.NewX, BotMovementLedger.NewY,
+	).VALUES(
+		NOW(), NOW(),
+		SELECT(Bots.ID).FROM(Bots).WHERE(Bots.Identifier.EQ(String(identifier))),
+		GenerateUserIDSubquery(username),
+		NOW(), x, y,
+	)
+}
+
+func NewRandomCoordinates(mineDistanceMin float64, mineDistanceMax float64) (float64, float64) {
+	// TODO: Make sure mines don't respawn on top of each other
+	return mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin),
+		mineDistanceMin + rand.Float64()*(mineDistanceMax-mineDistanceMin)
 }
 
 // Set up an error struct that will log what's going on with the server

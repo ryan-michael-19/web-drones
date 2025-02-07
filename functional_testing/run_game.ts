@@ -47,21 +47,26 @@ async function RunGame(username: string, password: string) {
         }
     });
     CLIENT.use(authMiddleware);
+    let bots:components["schemas"]["Bot"][] = [];
     await (async ()=>{
         console.log("NEW USER");
-        const {data, error} = await CLIENT.POST("/newUser", {parseAs:"text"});
+        const {data, error} = await CLIENT.POST("/newUser");
+        await new Promise(r => setTimeout(r, SLEEP_TIME));
         if (error !== undefined) { // try to log in if there's a new user error
             console.log("Error making new user", error.toString())
             console.log("LOGGING IN");
             // const {data, error} = await CLIENT.POST("/login", {parseAs:"text"});
             await CLIENT.POST("/login", {parseAs:"text"});
             await new Promise(r => setTimeout(r, SLEEP_TIME));
+            const res1 = await CLIENT.POST("/init");
+            await new Promise(r => setTimeout(r, SLEEP_TIME));
+            console.log(res1.error)
+            bots = res1.data.bots;
+        } else { // no error
+            bots = data.bots;
         }
     })();
-    const res1 = await CLIENT.POST("/init");
-    await new Promise(r => setTimeout(r, SLEEP_TIME));
-    console.log(res1.error)
-    const bots = res1.data.bots;
+
     
     const res2 = await CLIENT.GET("/mines");
     await new Promise(r => setTimeout(r, SLEEP_TIME));
