@@ -21,7 +21,11 @@ services:
   server:
     depends_on:
       - db
-    build: .
+    build: 
+      context: ./
+      platforms: 
+        - linux/arm/v7
+        - linux/amd64
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
       SESSION_KEY_FILE: /run/secrets/encryption_key
@@ -31,7 +35,7 @@ services:
     secrets:
       - postgres_pw
       - encryption_key
-    image: server
+    image: ghcr.io/ryan-michael-19/server
     # Even though we have db set as a dependency this service comes up
     # before the database is ready. Ugh
     restart: on-failure # TODO: Remove this
