@@ -58,9 +58,6 @@ type PostBotsBotIdNewBotJSONRequestBody PostBotsBotIdNewBotJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-
-	// (GET /)
-	Get(w http.ResponseWriter, r *http.Request)
 	// Get all bot info
 	// (GET /bots)
 	GetBots(w http.ResponseWriter, r *http.Request)
@@ -98,21 +95,6 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
-
-// Get operation middleware
-func (siw *ServerInterfaceWrapper) Get(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Get(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
 
 // GetBots operation middleware
 func (siw *ServerInterfaceWrapper) GetBots(w http.ResponseWriter, r *http.Request) {
@@ -425,7 +407,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/", wrapper.Get)
 	m.HandleFunc("GET "+options.BaseURL+"/bots", wrapper.GetBots)
 	m.HandleFunc("GET "+options.BaseURL+"/bots/{botId}", wrapper.GetBotsBotId)
 	m.HandleFunc("POST "+options.BaseURL+"/bots/{botId}/extract", wrapper.PostBotsBotIdExtract)
@@ -437,23 +418,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/newUser", wrapper.PostNewUser)
 
 	return m
-}
-
-type GetRequestObject struct {
-}
-
-type GetResponseObject interface {
-	VisitGetResponse(w http.ResponseWriter) error
-}
-
-type Get200TextResponse string
-
-func (response Get200TextResponse) VisitGetResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(200)
-
-	_, err := w.Write([]byte(response))
-	return err
 }
 
 type GetBotsRequestObject struct {
@@ -655,9 +619,6 @@ func (response PostNewUser401TextResponse) VisitPostNewUserResponse(w http.Respo
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-
-	// (GET /)
-	Get(ctx context.Context, request GetRequestObject) (GetResponseObject, error)
 	// Get all bot info
 	// (GET /bots)
 	GetBots(ctx context.Context, request GetBotsRequestObject) (GetBotsResponseObject, error)
@@ -714,30 +675,6 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
-}
-
-// Get operation middleware
-func (sh *strictHandler) Get(w http.ResponseWriter, r *http.Request) {
-	var request GetRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.Get(ctx, request.(GetRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "Get")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetResponseObject); ok {
-		if err := validResponse.VisitGetResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
 }
 
 // GetBots operation middleware

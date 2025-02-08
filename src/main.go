@@ -77,11 +77,6 @@ func (e *RateLimitError) Error() string {
 
 func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
-		if operationID == "Get" {
-			// Run without auth middleware
-			return f(ctx, w, r, request)
-		}
-		// TODO: Hook session information into postgres backend
 		session, err := sessionStore.Get(r, "SESSION")
 		if err != nil {
 			return "Authentication Error", &stateless.AuthError{OriginalError: err}
