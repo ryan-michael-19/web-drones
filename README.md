@@ -10,6 +10,4 @@ I am currently hosting the game at https://webdrones.net, and it can be ran in c
 
 API documentation at https://ryan-michael-19.github.io/web-drones/
 
-After you create a new user, you must run the `/init` endpoint to start the game or you will get server errors accessing other endpoints (fix coming soon!)
-
 The current rate limit is set to 2 requests per second.
