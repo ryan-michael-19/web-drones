@@ -26,6 +26,9 @@ services:
       platforms: 
         - linux/arm/v7
         - linux/amd64
+      # Why do i need this tag and the image name below??
+      tags: 
+        - ghcr.io/ryan-michael-19/web-drones:latest
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
       SESSION_KEY_FILE: /run/secrets/encryption_key
@@ -35,7 +38,7 @@ services:
     secrets:
       - postgres_pw
       - encryption_key
-    image: ghcr.io/ryan-michael-19/server
+    image: ghcr.io/ryan-michael-19/web-drones:latest
     # Even though we have db set as a dependency this service comes up
     # before the database is ready. Ugh
     restart: on-failure # TODO: Remove this
