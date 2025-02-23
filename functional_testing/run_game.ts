@@ -40,8 +40,8 @@ async function RunGame(username: string, password: string) {
     };
 
     const CLIENT = createClient<paths>({
-        baseUrl: "http://localhost:8080",
-        // baseUrl: "https://webdrones.net",
+        // baseUrl: "http://localhost:8080",
+        baseUrl: "https://webdrones.net",
         headers: {
             "Content-Type" : "plain/text"
         }
