@@ -80,6 +80,18 @@ services:
       - sleep 10 && /app/web-drones SCHEMA
     profiles:
       - init
+  
+  # Using https://hub.docker.com/r/prom/node-exporter setup to monitor host
+  # and not container
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    command:
+      - '--path.rootfs=/host'
+    network_mode: host
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - '/:/host:ro,rslave'
 
 secrets:
   postgres_pw:
