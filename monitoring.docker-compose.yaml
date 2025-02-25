@@ -7,3 +7,12 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus-data:/prometheus
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: unless-stopped
+    user: root # ew!!!!!!!
+    ports:
+      - '3000:3000'
+    volumes:
+      - './grafana-data:/var/lib/grafana'
