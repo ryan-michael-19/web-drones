@@ -24,7 +24,7 @@ env:
 
 
 jobs:
-  checkout: 
+  build_docs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,26 +37,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-  build_docs:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      # This is used to complete the identity challenge
-      # with sigstore/fulcio when running outside of PRs.
-      id-token: write
-      pages: write
-    steps:
       - name: Build documentation
-        run: npx @redocly/cli build-docs src/api/api-spec.yaml
+        run: mkdir -p ${{ github.workspace }}/docs && npx @redocly/cli build-docs ${{ github.workspace }}/src/api/api-spec.yaml -o ${{ github.workspace }}/docs/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           name: 'github-pages'
-          path: 'dist'
+          path: '${{ github.workspace }}/docs'
   
-  build_binary:
+  build_container:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,6 +55,8 @@ jobs:
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       # Install the cosign tool except on PR
       # https://github.com/sigstore/cosign-installer
       - name: Install cosign
@@ -83,7 +75,7 @@ jobs:
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin && docker compose -f docker-compose.yaml build --push server 
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin && docker compose -f ${{ github.workspace }}/docker-compose.yaml build --push server 
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
