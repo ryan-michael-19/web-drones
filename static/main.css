@@ -1,7 +1,11 @@
+:root {
+  color-scheme: light dark;
+}
+
 * {
     /* font-family: Consolas,monaco,monospace; */
-    background-color: black;
-    color: #236dd9CC;
+    background-color: light-dark(light-gray,black);
+    color: light-dark(#236dd9FF,#236dd9CC);
     font-family: 'Courier New', Courier, monospace;
 }
 
