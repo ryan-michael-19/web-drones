@@ -1,0 +1,24 @@
+* {
+    /* font-family: Consolas,monaco,monospace; */
+    background-color: black;
+    color: #236dd9CC;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+h1 {
+    text-align: center;
+    font-size: 72px;
+    margin: 1%;
+}
+p {
+    text-align: center;
+    font-size: 20px;
+}
+
+#drone-wave {
+    height:300px;
+    width: 300px;
+    display: block;
+    margin: 30px auto;
+    text-align: center;
+}
