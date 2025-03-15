@@ -63,7 +63,7 @@ services:
     depends_on:
       - db
       - server
-    image: server
+    image: ghcr.io/ryan-michael-19/web-drones:latest
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pw
       SESSION_KEY_FILE: /run/secrets/encryption_key
