@@ -4,7 +4,7 @@
 
 * {
     /* font-family: Consolas,monaco,monospace; */
-    background-color: light-dark(light-gray,black);
+    background-color: light-dark(#C0C0EE, #222230);
     color: light-dark(#236dd9FF,#236dd9CC);
     font-family: 'Courier New', Courier, monospace;
 }
@@ -41,6 +41,9 @@ body {
     font-size: 120%;
     text-wrap: wrap;
     font-weight: bolder;
+}
+.link_button:hover {
+    background-color: light-dark(#B0B0CE, #333340);
 }
 
 #drone-wave {
