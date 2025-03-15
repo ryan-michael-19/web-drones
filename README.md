@@ -12,6 +12,9 @@ API documentation at https://ryan-michael-19.github.io/web-drones/
 
 The current rate limit is set to 2 requests per second.
 
+All users refresh every Sunday at 8AM!
+
+Contact ryan-michael-tech@gmail.com for support.
 
 ## Tutorial
 

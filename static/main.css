@@ -15,14 +15,39 @@ h1 {
     margin: 1%;
 }
 p {
+    position: relative;
     text-align: center;
+    width: 50vw;
+    margin: 20px;
     font-size: 20px;
+}
+body {
+    display: grid;
+    place-items: center;
+    margin-top: 10vh;
+    text-align: center;
+}
+#link_container {
+    margin: 40px;
+    height: 120px;
+    display: flex;
+    justify-content: center;
+}
+.link_button {
+    border-radius: 10px;
+    border-width: thin;
+    width: 90%;
+    height: 100%;
+    font-size: 120%;
+    text-wrap: wrap;
+    font-weight: bolder;
 }
 
 #drone-wave {
     height:300px;
     width: 300px;
     display: block;
-    margin: 30px auto;
+    margin: 20px;
     text-align: center;
 }
+
