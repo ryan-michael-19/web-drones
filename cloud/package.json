@@ -1,0 +1,23 @@
+{
+  "name": "cloud",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild heartbeat.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/heartbeat.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-sns": "^3.758.0",
+    "aws-lambda": "^1.0.7",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^22.13.10",
+    "esbuild": "^0.25.1"
+  }
+}
