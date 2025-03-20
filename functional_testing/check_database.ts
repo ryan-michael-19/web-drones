@@ -21,15 +21,6 @@ const dialect = new PostgresDialect({
 export const db = new Kysely<DB>({
   dialect,
 });
-// (async () => {
-//     // const records = await db.selectFrom('bot_movement_ledger').selectAll().execute();
-//     // console.log("TEST QUERY");
-//     // console.log(records);
-//     const tables = await db.introspection.getTables();
-//     console.log("TABLES");
-//     console.log(tables);
-// })();
-console.log(db.dynamic);
 (async () => 
     {
         const tables = await db.introspection.getTables();
