@@ -35,7 +35,7 @@ body {
 }
 .link_button {
     border-radius: 10px;
-    border-width: thin;
+    border-width: 2px;
     width: 90%;
     height: 100%;
     font-size: 120%;
