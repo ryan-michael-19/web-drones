@@ -3,7 +3,7 @@
 }
 
 * {
-    /* font-family: Consolas,monaco,monospace; */
+    font-family: Consolas,monaco,monospace;
     background-color: light-dark(#C0C0EE, #222230);
     color: light-dark(#236dd9FF,#236dd9CC);
     font-family: 'Courier New', Courier, monospace;
