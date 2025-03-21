@@ -9,30 +9,38 @@
 }
 h1 {
     text-align: right;
-    font-size: 60px;
+    font-size: 650%;
     margin: 1%;
     flex-grow: 1;
 }
+h2 {
+    font-size: 1.5rem;
+}
 p {
     position: relative;
-    text-align: center;
-    margin: 20px;
-    font-size: 20px;
+    text-align: left;
+    margin-left: 1rem;
+    font-size: 1.5rem;
 }
 body {
-    margin-top: 5vh;
+    margin-top: 2vh;
     margin-left: auto;
     margin-right: auto;
-    width: 70vw;
-    height: 80vh;
-    overflow-y: hidden;
+    margin-bottom: 2vh;
+    width: 80vw;
+    height: 90vh;
+    font-size: 62.5%;
+}
+#top_row_container {
+    display: flex;
+    height: 100%
 }
 #main_grid {
     display: grid;
-    height: auto;
-    width: auto;
-    grid-template-columns: 4fr 2fr 4fr;
-    grid-template-rows: 1fr 0.5fr 1fr;
+    height: 100%;
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 3fr 2fr 4fr;
 }
 #header_container {
     display: flex;
@@ -44,8 +52,8 @@ body {
     grid-row: 1;
 }
 #link_container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    justify-content: space-evenly;
     grid-column: span 3;
     grid-row: 2;
     width: 100%;
@@ -53,26 +61,39 @@ body {
     text-align: center;
 }
 #text_container {
+    height: 100%;
+    width: 100%;
     grid-column: span 3;
     grid-row: 3;
+    overflow-y: auto;
+}
+form {
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
 }
 .link_button {
-    border-radius: 10px;
-    border-width: 2px;
-    width: 90%;
+    border-radius: 1rem;
+    border-width: 0.1rem;
+    width: 80%;
     height: 90%;
-    font-size: 120%;
+    font-size: 350%;
     text-wrap: wrap;
     font-weight: bolder;
     margin: 1%;
+    background-color: light-dark(#B0B0DD, #2c2c47);
 }
 .link_button:hover {
-    background-color: light-dark(#B0B0CE, #333340);
+     background-color: light-dark(#B0B0CE, #444452); 
 }
 #drone-wave {
-    object-fit: cover;
-    height: 100%;
-    width: 100%;
+    object-fit: scale-down; 
+    align-self: center;
+    min-height: 0; /* bruh. why.*/
+    max-width: 100%;
+    max-height: 100%;
     grid-row: 1;
     grid-column: 1;
 }
