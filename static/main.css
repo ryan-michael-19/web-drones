@@ -1,56 +1,100 @@
 :root {
   color-scheme: light dark;
 }
-
 * {
     font-family: Consolas,monaco,monospace;
     background-color: light-dark(#C0C0EE, #222230);
     color: light-dark(#236dd9FF,#236dd9CC);
     font-family: 'Courier New', Courier, monospace;
 }
-
 h1 {
-    text-align: center;
-    font-size: 72px;
+    text-align: right;
+    font-size: 650%;
     margin: 1%;
+    flex-grow: 1;
+}
+h2 {
+    font-size: 1.5rem;
 }
 p {
     position: relative;
-    text-align: center;
-    width: 50vw;
-    margin: 20px;
-    font-size: 20px;
+    text-align: left;
+    margin-left: 1rem;
+    font-size: 1.5rem;
 }
 body {
+    margin-top: 2vh;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 2vh;
+    width: 80vw;
+    height: 90vh;
+    font-size: 62.5%;
+}
+#top_row_container {
+    display: flex;
+    height: 100%
+}
+#main_grid {
     display: grid;
-    place-items: center;
-    margin-top: 10vh;
-    text-align: center;
+    height: 100%;
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 3fr 2fr 4fr;
+}
+#header_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: right;
+    width: 100%;
+    height: 100%;
+    grid-column: span 3; 
+    grid-row: 1;
 }
 #link_container {
-    margin: 40px;
-    height: 120px;
     display: flex;
-    justify-content: center;
+    justify-content: space-evenly;
+    grid-column: span 3;
+    grid-row: 2;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+#text_container {
+    height: 100%;
+    width: 100%;
+    grid-column: span 3;
+    grid-row: 3;
+    overflow-y: auto;
+}
+form {
+    display: grid;
+    justify-items: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
 }
 .link_button {
-    border-radius: 10px;
-    border-width: 2px;
-    width: 90%;
-    height: 100%;
-    font-size: 120%;
+    border-radius: 1rem;
+    border-width: 0.1rem;
+    width: 80%;
+    height: 90%;
+    font-size: 350%;
     text-wrap: wrap;
     font-weight: bolder;
+    margin: 1%;
+    background-color: light-dark(#B0B0DD, #2c2c47);
 }
 .link_button:hover {
-    background-color: light-dark(#B0B0CE, #333340);
+     background-color: light-dark(#B0B0CE, #444452); 
 }
-
 #drone-wave {
-    height:300px;
-    width: 300px;
-    display: block;
-    margin: 20px;
-    text-align: center;
+    object-fit: scale-down; 
+    align-self: center;
+    min-height: 0; /* bruh. why.*/
+    max-width: 100%;
+    max-height: 100%;
+    grid-row: 1;
+    grid-column: 1;
 }
 
