@@ -1,0 +1,10 @@
+@media (min-width:600px) {
+    h1 {
+        font-size: 500%;
+    }
+}
+@media (max-height:600px) {
+    h1 {
+        font-size: 200%;
+    }
+}
