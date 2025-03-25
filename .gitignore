@@ -10,3 +10,6 @@ functional_testing/cookies
 functional_testing/dist
 functional_testing/node_modules
 functional_testing/.env
+cloud/node_modules
+cloud/*terraform*
+img/*
