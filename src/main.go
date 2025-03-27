@@ -96,6 +96,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 				return "Authentication Error", &stateless.AuthError{NewError: errors.New("invalid basic auth header")}
 			}
 			stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
+			fmt.Println(stmt.DebugSql())
 			var hashedPassword model.Users
 			err := stmt.Query(stateful.DB, &hashedPassword)
 			if err != nil {
@@ -148,7 +149,7 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 }
 
 func main() {
-	fmt.Println("STARTING")
+	slog.Info("STARTING")
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
