@@ -24,12 +24,14 @@ function distanceSquared(p: components["schemas"]["Coordinates"], q: components[
 }
 
 function updateCoords(currentCoords:components["schemas"]["Coordinates"], alreadyDrawn: components["schemas"]["Coordinates"][]) {
+    // TODO: Think this through. It's not working
     // TODO: There's gotta be a faster/cleaner way to do this
     // Shift each bot name down if it's too close to an already drawn bot name
     function update(coordNumber: number) {
         if (coordNumber < alreadyDrawn.length) {
-            if (distanceSquared(currentCoords, alreadyDrawn[coordNumber]) < 25) {
-                currentCoords.y = alreadyDrawn[coordNumber].y-5;
+            const dist = 4;
+            if (distanceSquared(currentCoords, alreadyDrawn[coordNumber]) < dist*dist) {
+                currentCoords.y = alreadyDrawn[coordNumber].y-dist;
                 return update(0);
             }
             else {
@@ -76,15 +78,16 @@ function draw(context: CanvasRenderingContext2D, canvas:HTMLCanvasElement, bots:
         botImage.src = getImageName(bot);
         botImage.onload = (e) =>  {
             context.drawImage(botImage, 
-                bot.coordinates.x*scale-50,
-                bot.coordinates.y*scale-50, 
-                100, 100);
+                bot.coordinates.x*scale-25,
+                bot.coordinates.y*scale-25, 
+                50, 50);
         }
+        // TODO: Think through rendering names. It's currently not working.
         // Shift all coordinates downward to accomodate bot images
-        const textCoordsToDraw = updateCoords({...bot.coordinates}, drawnBotCoords);
-        context.fillText(bot.name, textCoordsToDraw.x*scale, textCoordsToDraw.y*scale+100);
-        // context.fillText(bot.name, coordsToDraw.x, coordsToDraw.y);
-        drawnBotCoords.push(textCoordsToDraw);
+        // const textCoordsToDraw = updateCoords({...bot.coordinates}, drawnBotCoords);
+        // context.fillText(bot.name, textCoordsToDraw.x*scale, textCoordsToDraw.y*scale+100);
+        // // context.fillText(bot.name, coordsToDraw.x, coordsToDraw.y);
+        // drawnBotCoords.push(textCoordsToDraw);
     });
     // TODO: change render for mines that are next to each other
     mines.forEach(mine => {
