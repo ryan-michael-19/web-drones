@@ -1,0 +1,33 @@
+@import "../../common.css";
+#login_container {
+  margin-top: 3%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+}
+.login_input > *, button {
+  font-size: 1.5rem;
+}
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 1em 2em;
+  font-size: 1.5rem;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+canvas {
+  display: grid;
+  background-color: black;
+  justify-self: center;
+}
