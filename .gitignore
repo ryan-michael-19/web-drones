@@ -13,3 +13,4 @@ functional_testing/.env
 cloud/node_modules
 cloud/*terraform*
 img/*
+tmp/*
