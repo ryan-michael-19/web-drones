@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { client } from "./WebClient";
 import type{ components } from "./types";
 
@@ -19,45 +19,15 @@ function getImageName(bot: components["schemas"]["Bot"]): string {
     }
 } 
 
-function distanceSquared(p: components["schemas"]["Coordinates"], q: components["schemas"]["Coordinates"]): number {
-    return Math.pow(q.x-p.x, 2) + Math.pow(q.y-p.y, 2)
-}
+// function distanceSquared(p: components["schemas"]["Coordinates"], q: components["schemas"]["Coordinates"]): number {
+    // return Math.pow(q.x-p.x, 2) + Math.pow(q.y-p.y, 2)
+// }
 
-function updateCoords(currentCoords:components["schemas"]["Coordinates"], alreadyDrawn: components["schemas"]["Coordinates"][]) {
-    // TODO: Think this through. It's not working
-    // TODO: There's gotta be a faster/cleaner way to do this
-    // Shift each bot name down if it's too close to an already drawn bot name
-    function update(coordNumber: number) {
-        if (coordNumber < alreadyDrawn.length) {
-            const dist = 4;
-            if (distanceSquared(currentCoords, alreadyDrawn[coordNumber]) < dist*dist) {
-                currentCoords.y = alreadyDrawn[coordNumber].y-dist;
-                return update(0);
-            }
-            else {
-                return update(coordNumber+1);
-            }
-        } else {
-            return currentCoords;
-        }
-    }
-    return update(0);
-}
-
-function draw(context: CanvasRenderingContext2D, canvas:HTMLCanvasElement, bots: components["schemas"]["Bot"][], mines: components["schemas"]["Coordinates"][]) {
-    context.fillStyle = '#FFFFFF';
-    context.clearRect(-canvas.width*0.5, -canvas.height*0.5, canvas.width, canvas.height);
+function fitScaleToMines(mines: components["schemas"]["Coordinates"][], canvas: HTMLCanvasElement): number {
     const mineXDistances = mines.map(
         mine => mine.x
     );
-    // Get the width of the minefield, and scale it to the width of the canvas.
     const mineWidth = Math.max(...mineXDistances) - Math.min(...mineXDistances);
-    // const mineYDistances = mines.map(
-        // mine => Math.abs(Math.abs(mine.y))
-    // );
-    // const furthestY = Math.max(...mineYDistances);
-    // const scale = canvas.height/furthestY;
-    // const scale = 13;
     const mineYDistances = mines.map(
         mine => mine.y
     );
@@ -70,30 +40,32 @@ function draw(context: CanvasRenderingContext2D, canvas:HTMLCanvasElement, bots:
     }
     // make a small margin
     scale /= 1.9;
-    // const scale = mineWidth/canvas.width;
-    const drawnBotCoords: components["schemas"]["Coordinates"][] = [];
-    bots.forEach(bot => {
-        // TODO: make this static?? 
-        const botImage = new Image();
-        botImage.src = getImageName(bot);
-        botImage.onload = (e) =>  {
-            context.drawImage(botImage, 
-                bot.coordinates.x*scale-25,
-                bot.coordinates.y*scale-25, 
-                50, 50);
-        }
-        // TODO: Think through rendering names. It's currently not working.
-        // Shift all coordinates downward to accomodate bot images
-        // const textCoordsToDraw = updateCoords({...bot.coordinates}, drawnBotCoords);
-        // context.fillText(bot.name, textCoordsToDraw.x*scale, textCoordsToDraw.y*scale+100);
-        // // context.fillText(bot.name, coordsToDraw.x, coordsToDraw.y);
-        // drawnBotCoords.push(textCoordsToDraw);
-    });
-    // TODO: change render for mines that are next to each other
-    mines.forEach(mine => {
-        // const nearbyMines = getNearbyMineCount(mine, mines);
-        context.fillText("X", mine.x*scale, mine.y*scale);
-    });
+    return scale;
+}
+
+function draw(context: CanvasRenderingContext2D, canvas:HTMLCanvasElement, bots: components["schemas"]["Bot"][], mines: components["schemas"]["Coordinates"][]) {
+    context.fillStyle = '#FFFFFF';
+    context.clearRect(-canvas.width*0.5, -canvas.height*0.5, canvas.width, canvas.height);
+    setTimeout(() => {
+        const scale = fitScaleToMines(mines, canvas);
+        bots.forEach(bot => {
+            // TODO: make this static?? 
+            const botImage = new Image();
+            botImage.src = getImageName(bot);
+            botImage.onload = (e) =>  {
+                context.drawImage(botImage, 
+                    bot.coordinates.x*scale-25,
+                    bot.coordinates.y*scale-25,
+                    50, 50);
+                context.fillText(bot.name, (bot.coordinates.x*scale), bot.coordinates.y*scale+35);
+            }
+        });
+        // TODO: change render for mines that are next to each other
+        mines.forEach(mine => {
+            // const nearbyMines = getNearbyMineCount(mine, mines);
+            context.fillText("X", mine.x*scale, mine.y*scale);
+        });
+    }, 300);
 }
 function adjustCanvas(canvas:HTMLCanvasElement) {
     canvas.height=window.innerHeight*0.7;
@@ -109,11 +81,29 @@ function adjustContext(canvas:HTMLCanvasElement, context:CanvasRenderingContext2
     );
 }
 
+async function updateData(setBots: (b: components["schemas"]["Bot"][]) => void, setMines: (m: components["schemas"]["Coordinates"][]) => void) {
+    const b = await client.GET("/bots");
+    const m = await client.GET("/mines");
+    // TODO: Ensure react is only triggering one render here
+    setBots(b.data ? b.data : []);
+    console.log("BOTS SET");
+    setMines(m.data ? m.data : []);
+    console.log("MINES SET");
+}
+
 export function Radar() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [bots, setBots] = useState<components["schemas"]["Bot"][]>([]);
+    const [mines, setMines] = useState<components["schemas"]["Coordinates"][]>([]);
+    useEffect(() => {
+        // updateData(setBots, setMines);
+        const i = setInterval(() => updateData(setBots, setMines), 2000);
+        return () => {
+            clearInterval(i);
+        }
+    }, []);
     useEffect(() => {
         const canvas = canvasRef.current;
-        let interval;
         if (canvas !== null) {
             adjustCanvas(canvas);
             window.addEventListener('resize', () => adjustCanvas(canvas));
@@ -125,45 +115,39 @@ export function Radar() {
                 // window resizes dynamically refit canvas data
                 adjustContext(canvas,context);
                 window.addEventListener('resize', () => adjustContext(canvas, context));
-                interval = setInterval(async () => {
-                    const bots = await client.GET("/bots");
-                    const mines = await client.GET("/mines");
-                    if (bots.data && mines.data) {
-                        draw(context, canvas, bots.data, mines.data);
+                function drawLoop() {
+                    if (bots.length > 0 && mines.length > 0) {
+                        draw(context!, canvas!, bots, mines);
                     } else {
                         // TODO: Handle more elegantly
                         let errString;
-                        if (!bots.data && mines.data) {
+                        if (bots.length <= 0 && mines.length > 0) {
                             errString = "bots";
-                        } else if (bots.data && !mines.data) {
+                        } else if (bots.length > 0 && mines.length <= 0) {
                             errString = "mines";
-                        } else if (!bots.data && !mines.data) {
+                        } else if (bots.length <=0 && mines.length <= 0) {
                             errString = "bots and mines";
                         } else {
                             // We should never get here. but, yaknow.
                             throw new Error("Unspecifed fetch error.");
                         }
-                        throw new Error(`Cannot find ${errString}`);
+                        // throw new Error(`Cannot find ${errString}`);
+                        console.log(`Cannot find ${errString}`);
                     }
-                }, 1000);
+                    // requestAnimationFrame(drawLoop);
+                }
+                drawLoop();
             } else {
                 throw new Error("Canvas context is null");
             }
         } else {
             throw new Error("Canvas is null");
         }
-        // We should never end up here, but better safe than sorry!
-        return () => {
-            if (interval !== undefined) { 
-                clearInterval(interval);
-            }
-        }
-    }, [draw]);
+    }, [bots, mines]);
     // }, []);
   
     return (
         <>
-            {/* <canvas ref={canvasRef} height={window.innerWidth*0.5} width={window.innerWidth*0.7}/> */}
             <canvas ref={canvasRef}></canvas>
         </>
     )
