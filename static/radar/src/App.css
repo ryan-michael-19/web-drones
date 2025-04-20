@@ -5,10 +5,10 @@
   justify-content: space-evenly;
   align-items: center;
 }
-.login_input > *, button {
+.login_input > * {
   font-size: 1.5rem;
 }
-button {
+.submit_button {
   border-radius: 8px;
   border: 1px solid transparent;
   padding: 1em 2em;
@@ -19,11 +19,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
-button:hover {
+.submit_button:hover {
   border-color: #646cff;
 }
-button:focus,
-button:focus-visible {
+.submit_button:focus,
+.submit_button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 canvas {

@@ -1,22 +1,17 @@
-import type { ChangeEvent } from "react";
-export function Login (
-    { loginToggler, usernameSetter, passwordSetter }: {
-    loginToggler: () => void,
-    usernameSetter: (e: ChangeEvent<HTMLInputElement>) => void,
-    passwordSetter: (e: ChangeEvent<HTMLInputElement>) => void
-}) {
+export function Login ({loginToggler}: {loginToggler: (formData: FormData) => void}) {
     return (
-        <div id="login_container">
+        <form id="login_container" action={loginToggler}>
             <div className="login_input">
                 <label htmlFor="username">Enter Username: </label>
-                <input type="text" id="username" onChange={usernameSetter}/>
+                <input type="text" name="username"/>
             </div>
             <div className="login_input">
                 <label htmlFor="password">Enter Password: </label>
-                <input type="password" id="password" onChange={passwordSetter}/>
+                <input type="password" name="password"/>
             </div>
-            <button onClick={loginToggler}>Log In</button>
-            
-        </div>
+            <div className="login_input">
+                <input className="submit_button" type="submit" value="Log In"/>
+            </div>
+        </form>
     );
 }
