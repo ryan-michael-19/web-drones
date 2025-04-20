@@ -31,6 +31,12 @@ canvas {
   background-color: black;
   justify-self: center;
 } 
+p {
+  margin-top: 3%;
+  text-align: center;
+  font-size: 1.2rem;
+  color: #FF2255;
+}
 h2 {
     font-size: 1.5rem;
     justify-self: center;

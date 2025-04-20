@@ -1,5 +1,6 @@
 import createClient, { Middleware }  from "openapi-fetch";
 import { paths } from "./types";
+import {LoginState} from "./App.tsx";
 
 export const client = createClient<paths>({
   // baseUrl: "https://webdrones.net",
@@ -21,8 +22,8 @@ export async function sendLoginRequest(username: string, password: string) {
   const res = await client.POST("/login", {parseAs: 'text'});
   client.eject(middleware);
   if (res.response.status === 200) {
-    return true;
+    return LoginState.SuccessfulLogin;
   } else {
-    return false;
+    return LoginState.FailedLogin;
   }
 }
