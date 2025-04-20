@@ -86,9 +86,7 @@ async function updateData(setBots: (b: components["schemas"]["Bot"][]) => void, 
     const m = await client.GET("/mines");
     // TODO: Ensure react is only triggering one render here
     setBots(b.data ? b.data : []);
-    console.log("BOTS SET");
     setMines(m.data ? m.data : []);
-    console.log("MINES SET");
 }
 
 export function Radar() {

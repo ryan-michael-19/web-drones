@@ -22,6 +22,7 @@ function App() {
             passwordSetter={e => setPassword(e.target.value)}
           />
       }
+      <h2>PHOTOSENSITIVITY WARNING! Radar will flash and blink when you log in!</h2>
     </>
   )
 }

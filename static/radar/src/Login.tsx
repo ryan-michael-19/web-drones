@@ -16,6 +16,7 @@ export function Login (
                 <input type="password" id="password" onChange={passwordSetter}/>
             </div>
             <button onClick={loginToggler}>Log In</button>
+            
         </div>
     );
 }

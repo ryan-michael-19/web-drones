@@ -14,3 +14,4 @@ cloud/node_modules
 cloud/*terraform*
 img/*
 tmp/*
+static/radar/node_modules
