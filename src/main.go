@@ -116,11 +116,6 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			}
 			w.Header().Add("Content-Type", "text/plain")
 			session.Values["username"] = username
-			// Write cookie into session
-			err = session.Save(r, w)
-			if err != nil {
-				return "Authentication Error", &stateless.AuthError{OriginalError: err}
-			}
 		} else if operationID == "PostNewUser" {
 			// TODO: INIT GAME AFTER NEW USER IS CREATED
 			username, password, ok := r.BasicAuth()
@@ -130,17 +125,16 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 			}
 			w.Header().Add("Content-Type", "text/plain")
 			session.Values["username"] = username
-			// Write cookie into session
-			err = session.Save(r, w)
-			if err != nil {
-				return "Authentication Error", &stateless.AuthError{OriginalError: err}
-			}
 			if !ok {
 				return "Authentication Error", &stateless.AuthError{NewError: errors.New("invalid basic auth header")}
 			}
 		} else if session.IsNew {
 			// We should have an existing session if we are not logging in or creating a new user
 			return "Authentication Error", &stateless.AuthError{NewError: errors.New("must use cookie to access this resource")}
+		}
+		err = session.Save(r, w)
+		if err != nil {
+			return "Authentication Error", &stateless.AuthError{OriginalError: err}
 		}
 		ctx = context.WithValue(ctx, impl.USERNAME_VALUE, session.Values["username"])
 		return f(ctx, w, r, request)
@@ -168,9 +162,13 @@ func main() {
 				// We're going to be a little messy here and return client error codes with the response error options
 				// so we don't have to rewrite the auth middleware.
 				var authErr *stateless.AuthError
+				var rateErr *RateLimitError
 				if errors.As(err, &authErr) {
 					slog.Error("caught client error", "error", err.(*stateless.AuthError).BothErrors(), "code", http.StatusUnauthorized)
 					http.Error(w, err.Error(), http.StatusUnauthorized)
+				} else if errors.As(err, &rateErr) {
+					slog.Error("caught client error", "error", err.(*RateLimitError).Error(), "code", http.StatusUnauthorized)
+					http.Error(w, err.Error(), http.StatusTooManyRequests)
 				} else {
 					slog.Error("caught server error", "error", err.Error(), "code", http.StatusInternalServerError)
 					http.Error(w, err.Error(), http.StatusInternalServerError)
