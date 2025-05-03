@@ -92,6 +92,23 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
+    build_radar:
+      runs-on: ubuntu-latest
+      permissions:
+        contents: read
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Set up Node
+          uses: actions/setup-node@v4
+          with:
+            node-version: 22.14.0
+        - name: Build
+          run: |
+            cd ${{ github.workspace }}/static/radar_src
+            npm install
+            npm run build
+
   # Deployed images must be manually pulled to create updated containers.
   # I don't want to open a firewall/port forward into my home server to automate this.
   deploy:

@@ -52,7 +52,7 @@ function draw(context: CanvasRenderingContext2D, canvas:HTMLCanvasElement, bots:
             // TODO: make this static?? 
             const botImage = new Image();
             botImage.src = getImageName(bot);
-            botImage.onload = (e) =>  {
+            botImage.onload = (_) =>  {
                 context.drawImage(botImage, 
                     bot.coordinates.x*scale-25,
                     bot.coordinates.y*scale-25,

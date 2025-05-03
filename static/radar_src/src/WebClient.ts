@@ -13,6 +13,8 @@ export async function sendLoginRequest(username: string, password: string) {
   // We should only ever be logging in once, so creating the middleware func
   // on every call is Probably Fine (famous last words)
   const middleware: Middleware = {
+    // options is a required part of the callback type despite not being used
+    // @ts-expect-error
     async onRequest({ request, options }) {
       const authString = btoa(`${username}:${password}`)
       request.headers.set("Authorization", `Basic ${authString}`);
