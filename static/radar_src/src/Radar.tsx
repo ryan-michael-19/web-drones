@@ -83,7 +83,9 @@ function adjustContext(canvas:HTMLCanvasElement, context:CanvasRenderingContext2
 
 async function updateData(setBots: (b: components["schemas"]["Bot"][]) => void, setMines: (m: components["schemas"]["Coordinates"][]) => void) {
     const b = await client.GET("/bots");
+    await new Promise(r => setTimeout(r, 1100));
     const m = await client.GET("/mines");
+    await new Promise(r => setTimeout(r, 1100));
     // TODO: Ensure react is only triggering one render here
     setBots(b.data ? b.data : []);
     setMines(m.data ? m.data : []);
@@ -95,7 +97,10 @@ export function Radar() {
     const [mines, setMines] = useState<components["schemas"]["Coordinates"][]>([]);
     useEffect(() => {
         // updateData(setBots, setMines);
-        const i = setInterval(() => updateData(setBots, setMines), 2000);
+        // this interval MUST be larger than any sleeping we do with the logic
+        // inside the loop!!! Just trust me that bad stuff will happen otherwise
+        const i = setInterval(() => updateData(setBots, setMines), 2500);
+        // const i = setInterval(() => updateData(setBots, setMines), 2000);
         return () => {
             clearInterval(i);
         }
