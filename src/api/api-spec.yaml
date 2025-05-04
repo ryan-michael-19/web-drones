@@ -7,6 +7,8 @@ info:
     url: https://github.com/user-attachments/assets/46ddb4ce-667f-4673-a869-3014de5a15e4
     backgroundColor: "#FAFAFA"
     altText: Web Drones Logo
+servers:
+  - url: https://webdrones.net
 paths:
   /login:
     post:
@@ -84,6 +86,8 @@ paths:
                 required:
                   - bots
                   - mines
+        '429':
+          $ref: "#/components/responses/RateLimitError"
   /bots:
     get:
       summary: Get all bot info
@@ -97,6 +101,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Bot'
+        '429':
+          $ref: "#/components/responses/RateLimitError"
+
   /bots/{botId}:
     get:
       summary: Get single bot info
@@ -114,6 +121,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Bot'
+        '429':
+          $ref: "#/components/responses/RateLimitError"
+
   /bots/{botId}/move:
     post:
       summary: Move a single bot
@@ -137,6 +147,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Bot'
+        '429':
+          $ref: "#/components/responses/RateLimitError"
+
   /bots/{botId}/extract:
     post:
       summary: Extract scrap
@@ -160,6 +173,9 @@ paths:
             text/plain:
               schema:
                 type: string
+        '429':
+          $ref: "#/components/responses/RateLimitError"
+
   /bots/{botId}/newBot:
     post:
       summary: Make a new bot
@@ -195,6 +211,9 @@ paths:
             text/plain:
               schema:
                 type: string
+        '429':
+          $ref: "#/components/responses/RateLimitError"
+
   /mines:
     get:
       summary: Get mines
@@ -208,6 +227,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Coordinates'
+        '429':
+          $ref: "#/components/responses/RateLimitError"
 
 components:
   securitySchemes:
@@ -251,8 +272,24 @@ components:
       required:
         - x
         - y
+    # TODO: Convert to json and apply to all response errors
     Error:
       type: string
+      # type: object
+      # properties:
+        # error:
+          # type: string
+
+  responses:
+    RateLimitError:
+      description: Returns when the rate limit has been reached.
+      content:
+        # application/json:
+        text/string:
+          schema:
+            "$ref": "#/components/schemas/Error"
+
+
 
 security:
   - cookieAuth: []

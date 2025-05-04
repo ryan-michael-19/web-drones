@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/oapi-codegen/runtime"
@@ -44,6 +45,9 @@ type Coordinates struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 }
+
+// Error defines model for Error.
+type Error = string
 
 // PostBotsBotIdNewBotJSONBody defines parameters for PostBotsBotIdNewBot.
 type PostBotsBotIdNewBotJSONBody struct {
@@ -420,6 +424,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	return m
 }
 
+type RateLimitErrorTextstringResponse struct {
+	Body io.Reader
+
+	ContentLength int64
+}
+
 type GetBotsRequestObject struct {
 }
 
@@ -434,6 +444,24 @@ func (response GetBots200JSONResponse) VisitGetBotsResponse(w http.ResponseWrite
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBots429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response GetBots429TextstringResponse) VisitGetBotsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type GetBotsBotIdRequestObject struct {
@@ -451,6 +479,24 @@ func (response GetBotsBotId200JSONResponse) VisitGetBotsBotIdResponse(w http.Res
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBotsBotId429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response GetBotsBotId429TextstringResponse) VisitGetBotsBotIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type PostBotsBotIdExtractRequestObject struct {
@@ -480,6 +526,24 @@ func (response PostBotsBotIdExtract422TextResponse) VisitPostBotsBotIdExtractRes
 	return err
 }
 
+type PostBotsBotIdExtract429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response PostBotsBotIdExtract429TextstringResponse) VisitPostBotsBotIdExtractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
 type PostBotsBotIdMoveRequestObject struct {
 	BotId string `json:"botId"`
 	Body  *PostBotsBotIdMoveJSONRequestBody
@@ -496,6 +560,24 @@ func (response PostBotsBotIdMove200JSONResponse) VisitPostBotsBotIdMoveResponse(
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type PostBotsBotIdMove429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response PostBotsBotIdMove429TextstringResponse) VisitPostBotsBotIdMoveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type PostBotsBotIdNewBotRequestObject struct {
@@ -526,6 +608,24 @@ func (response PostBotsBotIdNewBot422TextResponse) VisitPostBotsBotIdNewBotRespo
 	return err
 }
 
+type PostBotsBotIdNewBot429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response PostBotsBotIdNewBot429TextstringResponse) VisitPostBotsBotIdNewBotResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
 type PostInitRequestObject struct {
 }
 
@@ -543,6 +643,24 @@ func (response PostInit200JSONResponse) VisitPostInitResponse(w http.ResponseWri
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type PostInit429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response PostInit429TextstringResponse) VisitPostInitResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type PostLoginRequestObject struct {
@@ -586,6 +704,24 @@ func (response GetMines200JSONResponse) VisitGetMinesResponse(w http.ResponseWri
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMines429TextstringResponse struct {
+	RateLimitErrorTextstringResponse
+}
+
+func (response GetMines429TextstringResponse) VisitGetMinesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "text/string")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(429)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
 }
 
 type PostNewUserRequestObject struct {

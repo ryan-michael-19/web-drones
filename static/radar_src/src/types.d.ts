@@ -32,6 +32,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /** @example Login Successful */
                         "text/plain": string;
                     };
                 };
@@ -41,6 +42,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /** @example invalid username or password */
                         "text/plain": string;
                     };
                 };
@@ -92,6 +94,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /** @example invalid basic auth header */
                         "text/plain": string;
                     };
                 };
@@ -137,6 +140,7 @@ export interface paths {
                         };
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         delete?: never;
@@ -174,6 +178,7 @@ export interface paths {
                         "application/json": components["schemas"]["Bot"][];
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         put?: never;
@@ -215,6 +220,7 @@ export interface paths {
                         "application/json": components["schemas"]["Bot"];
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         put?: never;
@@ -262,6 +268,7 @@ export interface paths {
                         "application/json": components["schemas"]["Bot"];
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         delete?: never;
@@ -312,6 +319,7 @@ export interface paths {
                         "text/plain": string;
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         delete?: never;
@@ -368,6 +376,7 @@ export interface paths {
                         "text/plain": string;
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         delete?: never;
@@ -405,6 +414,7 @@ export interface paths {
                         "application/json": components["schemas"]["Coordinates"][];
                     };
                 };
+                429: components["responses"]["RateLimitError"];
             };
         };
         put?: never;
@@ -435,7 +445,17 @@ export interface components {
         };
         Error: string;
     };
-    responses: never;
+    responses: {
+        /** @description Returns when the rate limit has been reached. */
+        RateLimitError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "text/string": components["schemas"]["Error"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
