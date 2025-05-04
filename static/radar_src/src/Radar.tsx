@@ -100,7 +100,6 @@ export function Radar() {
         // this interval MUST be larger than any sleeping we do with the logic
         // inside the loop!!! Just trust me that bad stuff will happen otherwise
         const i = setInterval(() => updateData(setBots, setMines), 2500);
-        // const i = setInterval(() => updateData(setBots, setMines), 2000);
         return () => {
             clearInterval(i);
         }

@@ -61,6 +61,7 @@ func makeStore() *pgstore.PGStore {
 
 var sessionStore = makeStore()
 
+// TODO: Use golang's built in rate limiter
 func requestsPerSecondToTimeout(requestRate float64) float64 {
 	return 1 / requestRate
 }
