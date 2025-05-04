@@ -62,6 +62,7 @@ services:
       - "80:80"
     profiles:
       - prod
+
   nginx_dev:
     depends_on:
       - server
@@ -72,9 +73,12 @@ services:
      - ./static:/www
     ports:
       - "80:80"
+    # host mode can be enabled if you need to connect to the server
+    # outside of a container (useful for debugging)
+    # TODO: configure this without needing to uncomment code
+    # network_mode: host
     profiles:
       - dev
-
 
   init_db:
     depends_on:
@@ -119,3 +123,8 @@ secrets:
     file: ./postgres_pw.txt
   encryption_key:
     file: ./encryption_key.txt
+
+
+networks:
+  dev_host:
+    driver: host
