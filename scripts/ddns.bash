@@ -2,6 +2,7 @@
 
 set -euf -o pipefail
 
+# TODO: Move ./api_key to ./secret
 API_KEY=$(cat ./api_key)
 CURRENT_IP=$(cat ./current_ip)
 ZONE_ID=$(cat ./zone_id)
