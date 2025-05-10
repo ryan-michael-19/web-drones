@@ -1,20 +1,29 @@
 import { useRef, useEffect, useState } from "react";
 import { client } from "./WebClient";
-import type{ components } from "./types";
+import type { components } from "./types";
+
+import droneWaveImage from "./assets/drone_wave.png";
+import droneScrapImage from "./assets/drone_scrap.png";
+import droneWalkImage from "./assets/drone_walk.png";
+import droneWalkWithScrapImage from "./assets/drone_walk_scrap.png";
 
 function getImageName(bot: components["schemas"]["Bot"]): string {
-    const imageRoot = "/src/assets/"
+    // const imageRoot = "/src/assets/"
     if (bot.status === "IDLE") {
         if (bot.inventory <= 0) {
-            return imageRoot+"drone_wave.png";
+            // return imageRoot+"drone_wave.png";
+            return droneWaveImage;
         } else {
-            return imageRoot+"drone_scrap.png";
+            // return imageRoot+"drone_scrap.png";
+            return droneScrapImage;
         }
     } else { // Bot is moving (this condition will change in the future!)
         if (bot.inventory <= 0) {
-            return imageRoot+"drone_walk.png";
+            // return imageRoot+"drone_walk.png";
+            return droneWalkImage;
         } else {
-            return imageRoot+"drone_walk_scrap.png";
+            // return imageRoot+"drone_walk_scrap.png";
+            return droneWalkWithScrapImage;
         }
     }
 } 

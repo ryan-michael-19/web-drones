@@ -7,11 +7,6 @@ export default defineConfig({
   build: {
     outDir: '../radar',
     emptyOutDir: true,
-    // rollupOptions: {
-      // output: {
-        // assetFileNames: "radar/asset",
-      // }
-    // }
   },
   base:"./"
 })
