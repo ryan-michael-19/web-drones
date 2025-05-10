@@ -14,4 +14,7 @@ cloud/node_modules
 cloud/*terraform*
 img/*
 tmp/*
-static/radar/node_modules
+static/radar_src/node_modules
+static/radar_src/.vite
+secret/*
+static/radar
