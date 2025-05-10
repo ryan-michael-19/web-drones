@@ -109,6 +109,7 @@ jobs:
           npm install
           npm run build
       - name: Publish built artifacts 
+        if: ${{ github.ref_name == 'main' }}
         uses: actions/upload-artifact@v4
         with:
           name: webdrones-radar
