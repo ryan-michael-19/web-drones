@@ -9,7 +9,7 @@ on:
   # schedule:
   #   - cron: '36 12 * * *'
   push:
-    branches: [ "main" ]
+    branches: [ "main", "*" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
@@ -92,9 +92,33 @@ jobs:
         # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
-  # Deployed images must be manually pulled to create updated containers.
+  build_radar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+      - name: Build
+        run: |
+          cd ${{ github.workspace }}/static/radar_src
+          npm install
+          npm run build
+      - name: Publish built artifacts 
+        if: ${{ github.ref_name == 'main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: webdrones-radar
+          path: ${{ github.workspace }}/static/radar/
+
+  # Deployed artifacts must be manually pulled to create updated containers.
   # I don't want to open a firewall/port forward into my home server to automate this.
   deploy:
+    if: ${{ github.ref_name == 'main' }}
     needs: build_docs
 
     permissions:

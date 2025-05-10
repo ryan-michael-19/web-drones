@@ -1,12 +1,5 @@
-:root {
-  color-scheme: light dark;
-}
-* {
-    font-family: Consolas,monaco,monospace;
-    background-color: light-dark(#C0C0EE, #222230);
-    color: light-dark(#236dd9FF,#239cd9cc);
-    font-family: 'Courier New', Courier, monospace;
-}
+@import "./common.css";
+
 h1 {
     text-align: right;
     font-size: 650%;
@@ -20,15 +13,6 @@ p {
     text-align: left;
     margin-left: 1rem;
     font-size: 1.5rem;
-}
-body {
-    margin-top: 2vh;
-    margin-left: auto;
-    margin-right: auto;
-    margin-bottom: 2vh;
-    width: 80vw;
-    height: 90vh;
-    font-size: 62.5%;
 }
 #top_row_container {
     display: flex;

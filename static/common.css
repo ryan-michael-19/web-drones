@@ -1,0 +1,19 @@
+:root {
+  color-scheme: light dark;
+}
+* {
+    font-family: Consolas,monaco,monospace;
+    background-color: light-dark(#C0C0EE, #222230);
+    color: light-dark(#236dd9FF,#239cd9cc);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+body {
+    margin-top: 2vh;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 2vh;
+    width: 80vw;
+    height: 90vh;
+    font-size: 62.5%;
+}

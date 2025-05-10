@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Launch Radar",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/static/radar"
+        },
+        {
             "name": "Launch Server",
             "type": "go",
             "request": "launch",

@@ -54,6 +54,7 @@ services:
     restart: always
     volumes:
      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+     - ./base.nginx.conf:/etc/nginx/base.nginx.conf:ro
      - ./static:/www
      - /etc/letsencrypt/live/webdrones.net/fullchain.pem:/certs/fullchain.pem:ro
      - /etc/letsencrypt/live/webdrones.net/privkey.pem:/certs/privkey.pem:ro
@@ -69,12 +70,16 @@ services:
     restart: always
     volumes:
      - ./dev-nginx.conf:/etc/nginx/nginx.conf:ro
+     - ./base.nginx.conf:/etc/nginx/base.nginx.conf:ro
      - ./static:/www
     ports:
       - "80:80"
+    # host mode can be enabled if you need to connect to the server
+    # outside of a container (useful for debugging)
+    # TODO: configure this without needing to uncomment code
+    # network_mode: host
     profiles:
       - dev
-
 
   init_db:
     depends_on:
@@ -119,3 +124,8 @@ secrets:
     file: ./postgres_pw.txt
   encryption_key:
     file: ./encryption_key.txt
+
+
+networks:
+  dev_host:
+    driver: host
