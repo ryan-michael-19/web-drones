@@ -46,6 +46,9 @@ services:
       - "8080:8080"
     volumes:
       - ./container-logs:/app/logs
+    profiles:
+      - dev
+      - prod
 
   nginx:
     depends_on:
@@ -63,9 +66,10 @@ services:
       - "80:80"
     profiles:
       - prod
+
   nginx_dev:
-    depends_on:
-      - server
+    # depends_on:
+      # - server
     image: nginx:latest
     restart: always
     volumes:
@@ -77,9 +81,10 @@ services:
     # host mode can be enabled if you need to connect to the server
     # outside of a container (useful for debugging)
     # TODO: configure this without needing to uncomment code
-    # network_mode: host
+    network_mode: host
     profiles:
       - dev
+      - debug
 
   init_db:
     depends_on:

@@ -3,8 +3,8 @@ import { paths } from "./types";
 import {LoginState} from "./App.tsx";
 
 export const client = createClient<paths>({
-  baseUrl: "https://webdrones.net",
-  // baseUrl: "http://localhost",
+  // baseUrl: "https://webdrones.net",
+  baseUrl: "http://localhost",
   credentials: 'include',
   redirect: 'follow'
 });

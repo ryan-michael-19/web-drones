@@ -4,7 +4,8 @@ import createClient, {type Middleware} from "openapi-fetch";
 import {writeFileSync, readFileSync} from "fs";
 import process from "process";
 
-const SLEEP_TIME = 1000;
+// const SLEEP_TIME = 1000;
+const SLEEP_TIME = 0;
 
 function distanceSquared (x: number, y: number): number {
     return (x**2) + (y**2);
@@ -106,7 +107,7 @@ async function RunGame(username: string, password: string) {
             // TODO: Calculate time it takes bot to get to destination instead of looping
             // TODO: unlearn my functional programming brainrot
             const waitTillBotReachesDestination = async (w: ()=>Promise<boolean>) => {
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, SLEEP_TIME));
                 await w() ? null : await waitTillBotReachesDestination(w);
             }
             await waitTillBotReachesDestination(async () => {
