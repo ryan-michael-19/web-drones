@@ -46,6 +46,9 @@ services:
       - "8080:8080"
     volumes:
       - ./container-logs:/app/logs
+    profiles:
+      - dev
+      - prod
 
   nginx:
     depends_on:
@@ -63,9 +66,10 @@ services:
       - "80:80"
     profiles:
       - prod
+
   nginx_dev:
-    depends_on:
-      - server
+    # depends_on:
+      # - server
     image: nginx:latest
     restart: always
     volumes:
@@ -80,6 +84,7 @@ services:
     # network_mode: host
     profiles:
       - dev
+      - debug
 
   init_db:
     depends_on:
@@ -110,7 +115,7 @@ services:
     image: quay.io/prometheus/node-exporter:latest
     command:
       - '--path.rootfs=/host'
-    network_mode: host
+    # network_mode: host
     pid: host
     restart: always 
     volumes:

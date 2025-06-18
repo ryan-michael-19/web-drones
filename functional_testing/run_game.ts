@@ -13,7 +13,7 @@ function eps(a: number, b: number) {
     return Math.abs(a-b) < 1e-9;
 }
 
-async function RunGame(username: string, password: string) {
+async function RunGame(username: string, password: string, webdronesEndpoint: string) {
     const authMiddleware: Middleware = {
         async onRequest({ schemaPath, request }) {
             if (schemaPath === "/login" || schemaPath === "/newUser") {
@@ -40,13 +40,14 @@ async function RunGame(username: string, password: string) {
     };
 
     const CLIENT = createClient<paths>({
-        baseUrl: "http://localhost",
-        // baseUrl: "https://webdrones.net",
+        baseUrl: webdronesEndpoint,
         headers: {
             "Content-Type" : "plain/text"
         }
     });
+
     CLIENT.use(authMiddleware);
+
     let bots:components["schemas"]["Bot"][] = [];
     await (async ()=>{
         console.log("NEW USER");
@@ -106,7 +107,7 @@ async function RunGame(username: string, password: string) {
             // TODO: Calculate time it takes bot to get to destination instead of looping
             // TODO: unlearn my functional programming brainrot
             const waitTillBotReachesDestination = async (w: ()=>Promise<boolean>) => {
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, SLEEP_TIME));
                 await w() ? null : await waitTillBotReachesDestination(w);
             }
             await waitTillBotReachesDestination(async () => {
@@ -147,9 +148,11 @@ const CONFIG = {
 // nO tOp LeVeL aWaIt
 (async () => {
     // TODO: Run this in jest??
+    const usernamePasswordArray = CONFIG[process.argv[2]]
+    const webdronesEndpoint = process.argv[3]
     Promise.all(
-        CONFIG[process.argv[2]].map(async ([username, password])=>{
-            const result = await RunGame(username, password);
+        usernamePasswordArray.map(async ([username, password])=>{
+            const result = await RunGame(username, password, webdronesEndpoint);
             console.log(username);
             console.log(result);
             // Check that each bot made a new bot

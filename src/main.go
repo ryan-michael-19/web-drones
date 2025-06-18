@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
-	"time"
+	"sync"
 
+	"golang.org/x/time/rate"
+
+	"github.com/gorilla/securecookie"
 	"github.com/ryan-michael-19/web-drones/api"
 	"github.com/ryan-michael-19/web-drones/impl"
 	"github.com/ryan-michael-19/web-drones/utils/stateful"
@@ -48,9 +50,8 @@ func getSessionEncryptionKey() []byte {
 }
 
 func makeStore() *pgstore.PGStore {
-	// so we can use time objects in session.Values
-	// https://stackoverflow.com/questions/24834480/using-custom-types-with-gorilla-sessions
-	gob.Register(time.Time{})
+	// TODO: We shouldn't be serializing limiters into the gorilla backend. Can this be removed?
+	gob.Register(rate.Limiter{})
 	sessionEncryptionKey := getSessionEncryptionKey()
 	sessionStore, err := pgstore.NewPGStore(stateful.GetDBString(), sessionEncryptionKey)
 	if err != nil {
@@ -62,11 +63,15 @@ func makeStore() *pgstore.PGStore {
 var sessionStore = makeStore()
 
 // TODO: Use golang's built in rate limiter
-func requestsPerSecondToTimeout(requestRate float64) float64 {
-	return 1 / requestRate
-}
+// func requestsPerSecondToTimeout(requestRate float64) float64 {
+// return 1 / requestRate
+// }
+//
+// var rateLimitLength = requestsPerSecondToTimeout(2)
+var requestsPerSecond = rate.Limit(2.0)
+var burstLimit = 5
 
-var rateLimitLength = requestsPerSecondToTimeout(2)
+// var rateLimiter = rate.NewLimiter(requestsPerSecond, burstLimit)
 
 type RateLimitError struct {
 	message string
@@ -76,20 +81,23 @@ func (e *RateLimitError) Error() string {
 	return e.message
 }
 
+var rateLimitMap struct {
+	mut      sync.Mutex
+	limiters map[string]*rate.Limiter
+} = struct {
+	mut      sync.Mutex
+	limiters map[string]*rate.Limiter
+}{
+	sync.Mutex{},
+	make(map[string]*rate.Limiter),
+}
+
 func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
 		session, err := sessionStore.Get(r, "SESSION")
 		if err != nil {
 			return "Authentication Error", &stateless.AuthError{OriginalError: err}
 		}
-
-		lastRequest, ok := session.Values["lastRequest"]
-		if ok && time.Since(lastRequest.(time.Time)).Seconds() < rateLimitLength {
-			return "Timeout Error", &RateLimitError{message: "Rate limit reached. Please try again later."}
-		} else { // last request does not exist or happened longer ago than the rate limit length
-			session.Values["lastRequest"] = time.Now()
-		}
-
 		if operationID == "PostLogin" {
 			// check against db
 			username, password, ok := r.BasicAuth()
@@ -97,7 +105,6 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 				return "Authentication Error", &stateless.AuthError{NewError: errors.New("invalid basic auth header")}
 			}
 			stmt := SELECT(Users.Password).FROM(Users).WHERE(Users.Username.EQ(String(username)))
-			fmt.Println(stmt.DebugSql())
 			var hashedPassword model.Users
 			err := stmt.Query(stateful.DB, &hashedPassword)
 			if err != nil {
@@ -116,12 +123,13 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 				}
 			}
 			w.Header().Add("Content-Type", "text/plain")
-			session.Values["username"] = username
+			session.Values["username"] = username // TODO: Remove this? Username should already be set with PostNewUser
 		} else if operationID == "PostNewUser" {
 			// TODO: INIT GAME AFTER NEW USER IS CREATED
 			username, password, ok := r.BasicAuth()
 			err = stateful.CreateNewUser(username, password)
 			if err != nil {
+				// TODO: Why are we not returning an AuthError here?
 				return "Authentication Error", err
 			}
 			w.Header().Add("Content-Type", "text/plain")
@@ -135,7 +143,14 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 		}
 		err = session.Save(r, w)
 		if err != nil {
-			return "Authentication Error", &stateless.AuthError{OriginalError: err}
+			var cookieErr securecookie.Error
+			// Decode errors are likely caused by the client sending a bad cookie (or something similar)
+			// Other errors are most likely server issues.
+			if errors.As(err, &cookieErr) && !err.(securecookie.Error).IsDecode() {
+				return "Server Error", err
+			} else {
+				return "Authentication Error", &stateless.AuthError{OriginalError: err}
+			}
 		}
 		ctx = context.WithValue(ctx, impl.USERNAME_VALUE, session.Values["username"])
 		return f(ctx, w, r, request)
@@ -143,12 +158,40 @@ func AuthMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp
 
 }
 
+func RateLimitMiddleWare(f nethttp.StrictHTTPHandlerFunc, operationID string) nethttp.StrictHTTPHandlerFunc {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (response interface{}, err error) {
+		// Yes, you are reading this code correctly. We are building a second map from the session.Values map accessed in AuthMiddleWare
+		// I couldn't get each session's rate limiter into gorilla's session map due to gorilla's session library using gob for
+		// serialization under the hood. gob only serializes public struct fields. rate.Limiter is entirely private,
+		// and I am not familiar enough with it to implement GobEncoder and GobDecoder (though I am looking into this for the future).
+		// I also don't think gorilla sessions's serialization would play nice with private fields not being serialized.
+		// The example they use to store a struct as a session value doesn't have any private fields in the sample struct.
+		username := ctx.Value(impl.USERNAME_VALUE).(string)
+		rateLimitMap.mut.Lock()
+		defer rateLimitMap.mut.Unlock()
+		limiter, ok := rateLimitMap.limiters[username]
+		if ok {
+			if !limiter.Allow() {
+				return "Timeout Error", &RateLimitError{message: "Rate limit reached. Please try again later."}
+			}
+		} else {
+			slog.Info("creating new rate limiter", "username", username)
+			rateLimitMap.limiters[username] = rate.NewLimiter(requestsPerSecond, burstLimit)
+		}
+		return f(ctx, w, r, request)
+	}
+}
+
 func main() {
 	slog.Info("STARTING")
 	RUN_TYPE := os.Args[1]
 
 	if RUN_TYPE == "SERVER" {
-		m := []nethttp.StrictHTTPMiddlewareFunc{AuthMiddleWare}
+		// AuthMiddleWare MUST run before RateLimitMiddleWare
+		// which means it needs to be passed AFTER RateLimitMiddleWare
+		// because of how the generate code does function composition.
+		// TODO: Is there a way to force this dependency?
+		m := []nethttp.StrictHTTPMiddlewareFunc{RateLimitMiddleWare, AuthMiddleWare}
 		server := impl.NewServer()
 		// create a type that satisfies the `api.StrictServerInterface`, which contains an implementation of every operation from the generated code
 		// i := api.NewStrictHandler(server, m)
@@ -172,7 +215,7 @@ func main() {
 					http.Error(w, err.Error(), http.StatusTooManyRequests)
 				} else {
 					slog.Error("caught server error", "error", err.Error(), "code", http.StatusInternalServerError)
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					http.Error(w, "Internal server error.", http.StatusInternalServerError)
 				}
 			},
 		})

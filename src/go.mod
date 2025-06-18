@@ -6,15 +6,16 @@ require (
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
 	github.com/go-jet/jet/v2 v2.11.1
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/securecookie v1.1.2
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/oapi-codegen/runtime v1.1.1
 	golang.org/x/crypto v0.28.0
+	golang.org/x/time v0.11.0
 )
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/sessions v1.4.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
