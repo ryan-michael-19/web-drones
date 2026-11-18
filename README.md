@@ -17,6 +17,8 @@ Contact ryan.michael.tech@gmail.com for support.
 
 ## Tutorial
 
+For instructions on starting the backend with Docker Compose, see [Running the backend](BACKEND.md).
+
 Let's play Web Drones using cURL. The first thing we need to do is create a user and store the cookie we will use to access the game.
 
 ```shell
