@@ -13,7 +13,7 @@ The current rate limit is set to 2 requests per second.
 
 All users refresh every Sunday at 8AM!
 
-Contact ryan-michael-tech@gmail.com for support.
+Contact ryan.michael.tech@gmail.com for support.
 
 ## Tutorial
 
