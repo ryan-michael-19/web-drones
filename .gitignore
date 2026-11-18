@@ -3,6 +3,9 @@ go.work*
 pkg/
 *.exe
 certs/*
+certbot/conf/
+certbot/www/
+certbot/nginx/webdrones.conf
 encryption_key.txt
 postgres_pw.txt
 GITHUB_TOKEN
@@ -18,3 +21,8 @@ static/radar_src/node_modules
 static/radar_src/.vite
 secret/*
 static/radar
+/postgres-data/
+.env
+scripts/zone_id
+scripts/api_key
+scripts/current_ip
