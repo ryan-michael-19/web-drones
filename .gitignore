@@ -22,3 +22,7 @@ static/radar_src/.vite
 secret/*
 static/radar
 /postgres-data/
+.env
+scripts/zone_id
+scripts/api_key
+scripts/current_ip
